@@ -1,0 +1,86 @@
+[
+  {
+    "id": "ref_jamnagar",
+    "name": "Reliance Jamnagar",
+    "location": "Jamnagar",
+    "state": "Gujarat",
+    "capacity_mbpd": 1240,
+    "current_utilization_pct": 98,
+    "crude_grades_compatible": ["Arab Light", "Arab Heavy", "Basra Light", "Urals", "Murban"],
+    "primary_supplier": "sa_iraq",
+    "operator": "Reliance Industries",
+    "coordinates": { "lat": 22.47, "lng": 70.06 }
+  },
+  {
+    "id": "ref_kochi",
+    "name": "BPCL Kochi",
+    "location": "Kochi",
+    "state": "Kerala",
+    "capacity_mbpd": 310,
+    "current_utilization_pct": 94,
+    "crude_grades_compatible": ["Basra Light", "Arab Light", "Bonny Light"],
+    "primary_supplier": "sa_iraq",
+    "operator": "BPCL",
+    "coordinates": { "lat": 9.93, "lng": 76.27 }
+  },
+  {
+    "id": "ref_mangalore",
+    "name": "MRPL Mangalore",
+    "location": "Mangalore",
+    "state": "Karnataka",
+    "capacity_mbpd": 300,
+    "current_utilization_pct": 90,
+    "crude_grades_compatible": ["Arab Light", "Murban", "Urals"],
+    "primary_supplier": "sa_uae",
+    "operator": "MRPL",
+    "coordinates": { "lat": 12.91, "lng": 74.86 }
+  },
+  {
+    "id": "ref_panipat",
+    "name": "IOCL Panipat",
+    "location": "Panipat",
+    "state": "Haryana",
+    "capacity_mbpd": 300,
+    "current_utilization_pct": 92,
+    "crude_grades_compatible": ["Urals", "Arab Light", "Basra Light"],
+    "primary_supplier": "sa_russia",
+    "operator": "IOCL",
+    "coordinates": { "lat": 29.38, "lng": 76.97 }
+  },
+  {
+    "id": "ref_vadinar",
+    "name": "Nayara Energy Vadinar",
+    "location": "Vadinar",
+    "state": "Gujarat",
+    "capacity_mbpd": 405,
+    "current_utilization_pct": 96,
+    "crude_grades_compatible": ["Urals", "Arab Light", "Arab Heavy"],
+    "primary_supplier": "sa_russia",
+    "operator": "Nayara Energy",
+    "coordinates": { "lat": 22.46, "lng": 69.77 }
+  },
+  {
+    "id": "ref_vishaka",
+    "name": "HPCL Visakhapatnam",
+    "location": "Visakhapatnam",
+    "state": "Andhra Pradesh",
+    "capacity_mbpd": 166,
+    "current_utilization_pct": 88,
+    "crude_grades_compatible": ["Basra Light", "Arab Light"],
+    "primary_supplier": "sa_iraq",
+    "operator": "HPCL",
+    "coordinates": { "lat": 17.68, "lng": 83.21 }
+  },
+  {
+    "id": "ref_barauni",
+    "name": "IOCL Barauni",
+    "location": "Barauni",
+    "state": "Bihar",
+    "capacity_mbpd": 120,
+    "current_utilization_pct": 84,
+    "crude_grades_compatible": ["Arab Light", "Urals"],
+    "primary_supplier": "sa_saudi",
+    "operator": "IOCL",
+    "coordinates": { "lat": 25.47, "lng": 86.00 }
+  }
+]

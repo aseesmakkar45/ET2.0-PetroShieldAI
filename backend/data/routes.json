@@ -1,0 +1,115 @@
+[
+  {
+    "id": "route_hormuz_india",
+    "name": "Persian Gulf → India via Hormuz",
+    "from_location": "Persian Gulf",
+    "to_location": "Vadinar / Mundra",
+    "chokepoints": ["cp_hormuz"],
+    "waypoints": [
+      { "lat": 26.0, "lng": 51.5, "name": "Persian Gulf" },
+      { "lat": 26.57, "lng": 56.47, "name": "Strait of Hormuz" },
+      { "lat": 24.0, "lng": 59.0 },
+      { "lat": 22.47, "lng": 68.0, "name": "Vadinar" }
+    ],
+    "distance_nm": 1650,
+    "avg_transit_days": 5,
+    "risk_score": 58,
+    "active_vessels": 48,
+    "is_active": true
+  },
+  {
+    "id": "route_redsea_india",
+    "name": "Europe/West Africa → India via Red Sea",
+    "from_location": "Mediterranean / West Africa",
+    "to_location": "Mumbai / Kochi",
+    "chokepoints": ["cp_suez", "cp_bab_el_mandeb"],
+    "waypoints": [
+      { "lat": 32.0, "lng": 34.0, "name": "Mediterranean" },
+      { "lat": 30.02, "lng": 32.55, "name": "Suez Canal" },
+      { "lat": 20.0, "lng": 38.0, "name": "Red Sea" },
+      { "lat": 12.58, "lng": 43.43, "name": "Bab-el-Mandeb" },
+      { "lat": 10.0, "lng": 63.0 },
+      { "lat": 18.94, "lng": 72.84, "name": "Mumbai" }
+    ],
+    "distance_nm": 4200,
+    "avg_transit_days": 18,
+    "risk_score": 88,
+    "active_vessels": 12,
+    "is_active": true
+  },
+  {
+    "id": "route_cape_india",
+    "name": "West Africa → India via Cape of Good Hope",
+    "from_location": "West Africa",
+    "to_location": "Kochi / Mumbai",
+    "chokepoints": ["cp_cape_good_hope"],
+    "waypoints": [
+      { "lat": 4.9, "lng": 6.3, "name": "Nigeria" },
+      { "lat": -10.0, "lng": 5.0 },
+      { "lat": -34.35, "lng": 18.47, "name": "Cape of Good Hope" },
+      { "lat": -25.0, "lng": 40.0 },
+      { "lat": 9.93, "lng": 76.27, "name": "Kochi" }
+    ],
+    "distance_nm": 6800,
+    "avg_transit_days": 28,
+    "risk_score": 22,
+    "active_vessels": 8,
+    "is_active": true
+  },
+  {
+    "id": "route_russia_india_direct",
+    "name": "Russia → India Direct",
+    "from_location": "Russia (Arctic / Baltic)",
+    "to_location": "Vadinar / Paradip",
+    "chokepoints": [],
+    "waypoints": [
+      { "lat": 59.9, "lng": 30.3, "name": "St. Petersburg" },
+      { "lat": 40.0, "lng": 28.0 },
+      { "lat": 35.0, "lng": 25.0 },
+      { "lat": 30.0, "lng": 40.0 },
+      { "lat": 22.0, "lng": 60.0 },
+      { "lat": 22.47, "lng": 69.77, "name": "Vadinar" }
+    ],
+    "distance_nm": 7200,
+    "avg_transit_days": 22,
+    "risk_score": 30,
+    "active_vessels": 32,
+    "is_active": true
+  },
+  {
+    "id": "route_west_africa_india",
+    "name": "West Africa → India via Cape",
+    "from_location": "West Africa",
+    "to_location": "Mumbai",
+    "chokepoints": ["cp_cape_good_hope"],
+    "waypoints": [
+      { "lat": 4.9, "lng": 6.3, "name": "Nigeria/Angola" },
+      { "lat": -34.35, "lng": 18.47, "name": "Cape of Good Hope" },
+      { "lat": 18.94, "lng": 72.84, "name": "Mumbai" }
+    ],
+    "distance_nm": 6500,
+    "avg_transit_days": 25,
+    "risk_score": 28,
+    "active_vessels": 6,
+    "is_active": true
+  },
+  {
+    "id": "route_usa_india",
+    "name": "USA → India via Cape / Suez",
+    "from_location": "US Gulf Coast",
+    "to_location": "Paradip / Vizag",
+    "chokepoints": ["cp_suez"],
+    "waypoints": [
+      { "lat": 29.0, "lng": -90.0, "name": "US Gulf" },
+      { "lat": 10.0, "lng": -60.0 },
+      { "lat": 5.0, "lng": -5.0 },
+      { "lat": -34.35, "lng": 18.47, "name": "Cape of Good Hope" },
+      { "lat": 17.68, "lng": 83.21, "name": "Vizag" }
+    ],
+    "distance_nm": 10500,
+    "avg_transit_days": 35,
+    "risk_score": 15,
+    "active_vessels": 4,
+    "is_active": true
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cp_hormuz",
+    "name": "Strait of Hormuz",
+    "lat": 26.57,
+    "lng": 56.47,
+    "type": "strait",
+    "risk_score": 65,
+    "daily_flow_mbd": 21,
+    "description": "World's most critical oil chokepoint. ~21% of global petroleum flows through here daily.",
+    "affected_routes": ["route_hormuz_india"],
+    "threatened_by": ["Iran sanctions", "Iran military exercises", "mine laying"]
+  },
+  {
+    "id": "cp_bab_el_mandeb",
+    "name": "Bab-el-Mandeb",
+    "lat": 12.58,
+    "lng": 43.43,
+    "type": "strait",
+    "risk_score": 88,
+    "daily_flow_mbd": 8.8,
+    "description": "Red Sea entry point. Houthi attacks have severely disrupted traffic since late 2023.",
+    "affected_routes": ["route_redsea_india"],
+    "threatened_by": ["Houthi missile attacks", "drone strikes", "piracy"]
+  },
+  {
+    "id": "cp_suez",
+    "name": "Suez Canal",
+    "lat": 30.02,
+    "lng": 32.55,
+    "type": "canal",
+    "risk_score": 72,
+    "daily_flow_mbd": 5.5,
+    "description": "Critical shortcut between Europe and Asia. Diversions add 14+ days.",
+    "affected_routes": ["route_redsea_india"],
+    "threatened_by": ["Red Sea conflict", "blockage", "political closure"]
+  },
+  {
+    "id": "cp_malacca",
+    "name": "Strait of Malacca",
+    "lat": 2.55,
+    "lng": 101.22,
+    "type": "strait",
+    "risk_score": 35,
+    "daily_flow_mbd": 16,
+    "description": "Connects Indian Ocean to South China Sea. Primary route for East Asian energy.",
+    "affected_routes": ["route_east_asia"],
+    "threatened_by": ["piracy", "congestion"]
+  },
+  {
+    "id": "cp_cape_good_hope",
+    "name": "Cape of Good Hope",
+    "lat": -34.35,
+    "lng": 18.47,
+    "type": "cape",
+    "risk_score": 20,
+    "daily_flow_mbd": 4.2,
+    "description": "Alternative route bypassing Suez Canal. Adds 14 days to transit.",
+    "affected_routes": ["route_cape_india"],
+    "threatened_by": ["storms", "piracy"]
+  }
+]

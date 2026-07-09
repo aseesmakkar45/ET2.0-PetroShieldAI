@@ -1,0 +1,10 @@
+[
+  {"id": "field_ghawar", "name": "Ghawar Field", "country": "Saudi Arabia", "operator": "Saudi Aramco", "production_mbd": 3.8, "crude_grade": "Arab Light", "coordinates": { "lat": 25.1, "lng": 49.4 }, "risk_score": 40},
+  {"id": "field_rumaila", "name": "Rumaila Field", "country": "Iraq", "operator": "Iraq SOMO/BP", "production_mbd": 1.4, "crude_grade": "Basra Light", "coordinates": { "lat": 30.38, "lng": 47.68 }, "risk_score": 68},
+  {"id": "field_west_qurna", "name": "West Qurna", "country": "Iraq", "operator": "ExxonMobil/Lukoil", "production_mbd": 0.86, "crude_grade": "Basra Medium", "coordinates": { "lat": 30.9, "lng": 47.5 }, "risk_score": 72},
+  {"id": "field_vankor", "name": "Vankor Field", "country": "Russia", "operator": "Rosneft", "production_mbd": 0.4, "crude_grade": "ESPO", "coordinates": { "lat": 67.5, "lng": 83.5 }, "risk_score": 80},
+  {"id": "field_murban", "name": "Murban Field", "country": "UAE", "operator": "ADNOC", "production_mbd": 1.0, "crude_grade": "Murban", "coordinates": { "lat": 23.6, "lng": 53.8 }, "risk_score": 28},
+  {"id": "field_zakum", "name": "Upper Zakum", "country": "UAE", "operator": "ADNOC/ExxonMobil", "production_mbd": 0.75, "crude_grade": "Upper Zakum", "coordinates": { "lat": 24.5, "lng": 53.3 }, "risk_score": 25},
+  {"id": "field_bonny", "name": "Bonny Light Terminal", "country": "Nigeria", "operator": "Shell/NNPC", "production_mbd": 0.2, "crude_grade": "Bonny Light", "coordinates": { "lat": 4.44, "lng": 7.15 }, "risk_score": 60},
+  {"id": "field_permian", "name": "Permian Basin", "country": "USA", "operator": "Various", "production_mbd": 2.0, "crude_grade": "WTI Midland", "coordinates": { "lat": 31.8, "lng": -102.5 }, "risk_score": 10}
+]

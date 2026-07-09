@@ -1,0 +1,74 @@
+[
+  {
+    "id": "port_vadinar",
+    "name": "Vadinar Port",
+    "location": "Vadinar",
+    "state": "Gujarat",
+    "annual_capacity_mt": 100,
+    "current_throughput_mt": 82,
+    "berths": 6,
+    "max_vessel_dwt": 320000,
+    "coordinates": { "lat": 22.46, "lng": 69.77 },
+    "congestion_level": 35
+  },
+  {
+    "id": "port_mundra",
+    "name": "Mundra Port",
+    "location": "Mundra",
+    "state": "Gujarat",
+    "annual_capacity_mt": 120,
+    "current_throughput_mt": 95,
+    "berths": 8,
+    "max_vessel_dwt": 280000,
+    "coordinates": { "lat": 22.84, "lng": 69.72 },
+    "congestion_level": 42
+  },
+  {
+    "id": "port_mumbai",
+    "name": "Mumbai Port",
+    "location": "Mumbai",
+    "state": "Maharashtra",
+    "annual_capacity_mt": 62,
+    "current_throughput_mt": 48,
+    "berths": 12,
+    "max_vessel_dwt": 150000,
+    "coordinates": { "lat": 18.94, "lng": 72.84 },
+    "congestion_level": 58
+  },
+  {
+    "id": "port_kochi",
+    "name": "Kochi Port",
+    "location": "Kochi",
+    "state": "Kerala",
+    "annual_capacity_mt": 22,
+    "current_throughput_mt": 18,
+    "berths": 4,
+    "max_vessel_dwt": 120000,
+    "coordinates": { "lat": 9.93, "lng": 76.27 },
+    "congestion_level": 28
+  },
+  {
+    "id": "port_paradip",
+    "name": "Paradip Port",
+    "location": "Paradip",
+    "state": "Odisha",
+    "annual_capacity_mt": 45,
+    "current_throughput_mt": 38,
+    "berths": 5,
+    "max_vessel_dwt": 200000,
+    "coordinates": { "lat": 20.26, "lng": 86.68 },
+    "congestion_level": 32
+  },
+  {
+    "id": "port_vizag",
+    "name": "Visakhapatnam Port",
+    "location": "Visakhapatnam",
+    "state": "Andhra Pradesh",
+    "annual_capacity_mt": 30,
+    "current_throughput_mt": 22,
+    "berths": 4,
+    "max_vessel_dwt": 180000,
+    "coordinates": { "lat": 17.68, "lng": 83.21 },
+    "congestion_level": 22
+  }
+]
