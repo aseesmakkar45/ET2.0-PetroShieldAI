@@ -4,15 +4,12 @@ import React from 'react'
 import Topbar from '@/components/layout/Topbar'
 import CommandCenter from '@/components/CommandCenter'
 
-export default function CommandCenterPage() {
+export default function StrategicReservesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {/* Platform Header */}
-      <Topbar title="National Energy Command Center" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
-      
-      {/* 8-Panel Operations Center */}
+      <Topbar title="6. Strategic Reserves" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
-        <CommandCenter />
+        <CommandCenter view="strategic-reserves" />
       </div>
     </div>
   )

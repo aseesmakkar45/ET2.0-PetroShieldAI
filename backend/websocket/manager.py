@@ -63,7 +63,7 @@ async def vessel_position_broadcaster():
     while True:
         await asyncio.sleep(5)  # every 5 seconds
         if vessel_manager.active_connections:
-            vessels = generate_vessels(count=45)
+            vessels = generate_vessels(count=125)
             update = {
                 "type": "vessel_update",
                 "payload": vessels,

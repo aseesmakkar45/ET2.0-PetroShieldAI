@@ -4,15 +4,12 @@ import React from 'react'
 import Topbar from '@/components/layout/Topbar'
 import CommandCenter from '@/components/CommandCenter'
 
-export default function CommandCenterPage() {
+export default function SupplyChainDigitalTwinPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {/* Platform Header */}
-      <Topbar title="National Energy Command Center" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
-      
-      {/* 8-Panel Operations Center */}
+      <Topbar title="7. Supply Chain Digital Twin" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
-        <CommandCenter />
+        <CommandCenter view="supply-chain-digital-twin" />
       </div>
     </div>
   )

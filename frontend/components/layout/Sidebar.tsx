@@ -1,22 +1,35 @@
 'use client'
 
-import Link from 'next/link'
+import React from 'react'
 import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
-  LayoutDashboard, AlertTriangle, Zap, ShoppingCart,
-  Database, Share2, BarChart3, Settings, Shield, Activity
+  LayoutDashboard, AlertTriangle, Map, Zap, ShoppingCart,
+  Database, Share2, BarChart3, Bell, Settings, Shield,
+  Globe, Eye, FileText
 } from 'lucide-react'
 
+const MAIN_FEATURES = [
+  { label: 'Real-time Risk Intelligence', desc: 'Monitor geopolitical, logistics & market risks', icon: Globe },
+  { label: 'AI Scenario Simulation', desc: 'Simulate disruptions & assess impacts', icon: Zap },
+  { label: 'Smart Procurement', desc: 'AI-driven supplier recommendations', icon: ShoppingCart },
+  { label: 'Geospatial Intelligence', desc: 'Visualize global events & supply routes', icon: Map },
+  { label: 'Signal Detection', desc: 'Detect early warning signals', icon: Eye },
+  { label: 'Reports & Insights', desc: 'Actionable recommendations & analytics', icon: FileText }
+]
+
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Command Center', icon: LayoutDashboard },
-  { href: '/dashboard/risk', label: 'Risk Intelligence', icon: AlertTriangle },
-  { href: '/dashboard/scenarios', label: 'Scenario Simulator', icon: Zap },
-  { href: '/dashboard/procurement', label: 'Procurement', icon: ShoppingCart },
-  { href: '/dashboard/spr', label: 'Strategic Reserve', icon: Database },
-  { href: '/dashboard/knowledge-graph', label: 'Knowledge Graph', icon: Share2 },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard',                          label: '1. Dashboard (Overview)',      icon: LayoutDashboard },
+  { href: '/dashboard/risk-intelligence',        label: '2. Risk Intelligence',         icon: AlertTriangle },
+  { href: '/dashboard/geospatial-map',           label: '3. Geospatial Map',            icon: Map },
+  { href: '/dashboard/scenario-simulator',       label: '4. Scenario Simulator',        icon: Zap },
+  { href: '/dashboard/procurement-orchestrator',  label: '5. Procurement Orchestrator',   icon: ShoppingCart },
+  { href: '/dashboard/strategic-reserves',        label: '6. Strategic Reserves',         icon: Database },
+  { href: '/dashboard/supply-chain-digital-twin', label: '7. Supply Chain Digital Twin',  icon: Share2 },
+  { href: '/dashboard/reports-insights',          label: '8. Reports & Insights',         icon: BarChart3 },
+  { href: '/dashboard/alerts-signal-center',      label: '9. Alerts & Signal Center',     icon: Bell },
+  { href: '/dashboard/settings',                 label: '10. Settings',                 icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -26,7 +39,7 @@ export default function Sidebar() {
     <aside style={{
       width: 'var(--sidebar-width)',
       height: '100vh',
-      background: 'rgba(8, 12, 20, 0.98)',
+      background: 'rgba(255, 255, 255, 0.98)',
       borderRight: '1px solid var(--color-border)',
       display: 'flex',
       flexDirection: 'column',
@@ -38,121 +51,131 @@ export default function Sidebar() {
     }}>
       {/* Logo */}
       <div style={{
-        padding: '20px 16px 16px',
+        padding: '16px 16px 12px',
         borderBottom: '1px solid var(--color-border)',
         display: 'flex',
         alignItems: 'center',
         gap: 10,
       }}>
         <div style={{
-          width: 36, height: 36,
-          background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-          borderRadius: 10,
+          width: 32, height: 32,
+          background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)',
+          borderRadius: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 4px 12px rgba(29, 78, 216, 0.15)',
         }}>
-          <Shield size={18} color="white" strokeWidth={2.5} />
+          <Shield size={16} color="white" strokeWidth={2.5} />
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', lineHeight: 1.2 }}>
-            PetroShield
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.2px', lineHeight: 1.2 }}>
+            PetroShield AI
           </div>
-          <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600, letterSpacing: '0.5px' }}>
-            AI PLATFORM
+          <div style={{ fontSize: 9, color: '#1d4ed8', fontWeight: 700, letterSpacing: '0.8px' }}>
+            DECISION ENGINE
           </div>
         </div>
       </div>
 
-      {/* Status indicator */}
-      <div style={{
-        margin: '12px 12px 4px',
-        padding: '8px 12px',
-        background: 'rgba(16, 185, 129, 0.08)',
-        border: '1px solid rgba(16, 185, 129, 0.2)',
-        borderRadius: 8,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}>
-        <div className="pulse-dot" style={{ background: '#10b981' }} />
-        <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600, letterSpacing: '0.5px' }}>
-          DEMO MODE ACTIVE
-        </span>
-        <Activity size={11} color="#10b981" style={{ marginLeft: 'auto' }} />
-      </div>
+      {/* Sidebar Content Scrollable Area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+        
+        {/* Main Features Info List */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.8px', padding: '0 8px 8px', textTransform: 'uppercase' }}>
+            Main Features
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {MAIN_FEATURES.map((feat, idx) => {
+              const Icon = feat.icon
+              return (
+                <div key={idx} style={{ display: 'flex', gap: 8, padding: '6px 8px', borderRadius: 6, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                  <Icon size={14} color="#3b82f6" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{feat.label}</div>
+                    <div style={{ fontSize: 9, color: 'var(--color-text-secondary)', lineHeight: 1.3, marginTop: 1 }}>{feat.desc}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-          
-          return (
-            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
-              <motion.div
-                whileHover={{ x: 3 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '9px 12px',
-                  borderRadius: 8,
-                  marginBottom: 2,
-                  cursor: 'pointer',
-                  background: isActive
-                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(139, 92, 246, 0.1))'
-                    : 'transparent',
-                  border: isActive
-                    ? '1px solid rgba(59, 130, 246, 0.25)'
-                    : '1px solid transparent',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {isActive && (
-                  <div style={{
-                    position: 'absolute',
-                    left: 0, top: '20%', bottom: '20%',
-                    width: 3,
-                    background: 'linear-gradient(180deg, #3b82f6, #8b5cf6)',
-                    borderRadius: '0 3px 3px 0',
-                  }} />
-                )}
-                <Icon
-                  size={16}
-                  color={isActive ? '#60a5fa' : '#475569'}
-                  strokeWidth={2}
-                />
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#f1f5f9' : '#64748b',
-                  transition: 'color 200ms',
-                }}>
-                  {item.label}
-                </span>
-              </motion.div>
-            </Link>
-          )
-        })}
-      </nav>
+        {/* Platform Pages Navigation */}
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.8px', padding: '0 8px 8px', textTransform: 'uppercase' }}>
+            Platform Pages
+          </div>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{ textDecoration: 'none', display: 'block' }}
+                >
+                  <motion.div
+                    whileHover={{ x: 2 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      background: isActive ? 'rgba(29, 78, 216, 0.05)' : 'transparent',
+                      border: isActive ? '1px solid rgba(29, 78, 216, 0.1)' : '1px solid transparent',
+                      position: 'relative',
+                    }}
+                  >
+                    {isActive && (
+                      <div style={{
+                        position: 'absolute',
+                        left: 0, top: '25%', bottom: '25%',
+                        width: 3,
+                        background: '#1d4ed8',
+                        borderRadius: '0 3px 3px 0',
+                      }} />
+                    )}
+                    <Icon
+                      size={14}
+                      color={isActive ? '#1d4ed8' : '#64748b'}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    <span style={{
+                      fontSize: 11.5,
+                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? '#1d4ed8' : '#475569',
+                    }}>
+                      {item.label}
+                    </span>
+                  </motion.div>
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+
+      </div>
 
       {/* Footer */}
       <div style={{
-        padding: '12px 16px',
+        padding: '10px 14px',
         borderTop: '1px solid var(--color-border)',
-        fontSize: 11,
-        color: '#334155',
+        fontSize: 10,
+        color: 'var(--color-text-muted)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        background: '#f8fafc'
       }}>
-        <span>v1.0.0</span>
-        <span style={{ color: '#1e3a5f' }}>© 2024 PetroShield AI</span>
+        <span style={{ fontWeight: 600 }}>v1.0.0</span>
+        <span>© 2026 PetroShield AI</span>
       </div>
     </aside>
   )

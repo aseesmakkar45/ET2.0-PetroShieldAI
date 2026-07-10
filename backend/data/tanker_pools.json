@@ -1,0 +1,38 @@
+[
+  {
+    "id": "pool_persian_gulf",
+    "region": "Persian Gulf",
+    "available_vlcc": 45,
+    "available_suezmax": 30,
+    "available_aframax": 25,
+    "avg_charter_rate_usd_day": 42000,
+    "estimated_positioning_days": 1
+  },
+  {
+    "id": "pool_west_africa",
+    "region": "West Africa",
+    "available_vlcc": 15,
+    "available_suezmax": 20,
+    "available_aframax": 18,
+    "avg_charter_rate_usd_day": 38000,
+    "estimated_positioning_days": 14
+  },
+  {
+    "id": "pool_us_gulf",
+    "region": "US Gulf Coast",
+    "available_vlcc": 10,
+    "available_suezmax": 15,
+    "available_aframax": 20,
+    "avg_charter_rate_usd_day": 45000,
+    "estimated_positioning_days": 28
+  },
+  {
+    "id": "pool_baltic_blacksea",
+    "region": "Baltic/Black Sea",
+    "available_vlcc": 5,
+    "available_suezmax": 25,
+    "available_aframax": 30,
+    "avg_charter_rate_usd_day": 40000,
+    "estimated_positioning_days": 20
+  }
+]

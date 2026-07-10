@@ -1,0 +1,2099 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import dynamic from 'next/dynamic'
+import { 
+  Activity, ShieldAlert, Sliders, Settings, CheckCircle, HelpCircle, 
+  BookOpen, Terminal, ChevronRight, Copy, Check, Play, RefreshCw,
+  TrendingUp, Truck, Compass, Server, Info, Shield, Layers, Cpu, Globe
+} from 'lucide-react'
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+} from 'recharts'
+import { getDashboard, getMapData, api } from '@/services/api'
+
+// Dynamically import Leaflet Map to avoid SSR errors
+const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
+
+export default function CommandCenter({ view }: { view?: string }) {
+  const queryClient = useQueryClient()
+  const [currentHash, setCurrentHash] = useState('')
+  const [simulationPrompt, setSimulationPrompt] = useState(
+    "CRITICAL conflict, OPEC quota anxiety, and sanctions blockade: Iran blockades the Strait of Hormuz, shutting down 100% of crude oil tanker transits to Sikka. Brent price spikes 20%."
+  )
+  const [selectedScenarioType, setSelectedScenarioType] = useState('hormuz')
+  const [copied, setCopied] = useState(false)
+  const [decisionActionStatus, setDecisionActionStatus] = useState<Record<string, string>>({})
+
+  // Sliders state (Scenario Modeling)
+  const [shortfallSlider, setShortfallSlider] = useState(1.2)
+  const [opecSlider, setOpecSlider] = useState(1.65)
+  const [volatilitySlider, setVolatilitySlider] = useState(30)
+
+  const [toastAlerts, setToastAlerts] = useState<any[]>([])
+
+  // Real-time AIS stream state variables
+  const [aisKeyInput, setAisKeyInput] = useState('')
+  const [hasRealAisKey, setHasRealAisKey] = useState(false)
+  const [aisSaveStatus, setAisSaveStatus] = useState('')
+
+  useEffect(() => {
+    // Fetch initial AIS key status
+    api.get('/api/settings/ais')
+      .then(res => {
+        if (res.data.has_key) {
+          setHasRealAisKey(true)
+          setAisKeyInput(res.data.masked_key)
+        }
+      })
+      .catch(err => console.error("Error loading settings:", err))
+  }, [])
+
+  const saveAisKey = () => {
+    setAisSaveStatus('Saving...')
+    api.post('/api/settings/ais', { api_key: aisKeyInput })
+      .then(res => {
+        setAisSaveStatus('Saved!')
+        setHasRealAisKey(!!aisKeyInput)
+        queryClient.invalidateQueries({ queryKey: ['map'] })
+        setTimeout(() => setAisSaveStatus(''), 2000)
+      })
+      .catch(err => {
+        setAisSaveStatus('Error saving key')
+        setTimeout(() => setAisSaveStatus(''), 2000)
+      })
+  }
+
+  useEffect(() => {
+    // Listen to hash change
+    const syncHash = () => {
+      setCurrentHash(window.location.hash || '')
+    }
+    window.addEventListener('hashchange', syncHash)
+    syncHash()
+    
+    // Setup WS toast alerts
+    const wsUrl = window.location.origin.replace('http', 'ws')
+    const ws = new WebSocket(`${wsUrl}/ws/alerts`)
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        setToastAlerts(prev => [data, ...prev].slice(0, 3))
+      } catch (err) {
+        console.error("Error parsing websocket alert:", err)
+      }
+    }
+    
+    return () => {
+      window.removeEventListener('hashchange', syncHash)
+      ws.close()
+    }
+  }, [])
+
+  // 1. Fetch dashboard state
+  const { data: dashboard, isLoading: dashLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: getDashboard,
+    refetchInterval: 5000,
+  })
+
+  // 2. Fetch Map coordinates
+  const { data: mapData, isLoading: mapLoading } = useQuery({
+    queryKey: ['map'],
+    queryFn: getMapData,
+    refetchInterval: 5000,
+  })
+
+  // 3. Fetch decision replay trace
+  const { data: replayData } = useQuery({
+    queryKey: ['decision-replay'],
+    queryFn: () => api.get('/api/decision-replay').then(r => r.data),
+    refetchInterval: 5000,
+  })
+
+  // 4. Mutation to trigger pipeline simulation
+  const simulateMutation = useMutation({
+    mutationFn: (payload: { raw_signal: string; source_type: string }) => 
+      api.post('/api/signals/simulate', payload).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['map'] })
+      queryClient.invalidateQueries({ queryKey: ['decision-replay'] })
+    }
+  })
+
+  // 5. Mutation to trigger manual slider recalculation
+  const whatIfMutation = useMutation({
+    mutationFn: (payload: { scenario_type: string; current_brent: number }) =>
+      api.post('/api/scenarios/generate', payload).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['map'] })
+      queryClient.invalidateQueries({ queryKey: ['decision-replay'] })
+    }
+  })
+
+  // Trigger default simulation run
+  const triggerSimulation = (promptText = simulationPrompt) => {
+    simulateMutation.mutate({
+      raw_signal: promptText,
+      source_type: "NEWS"
+    })
+  }
+
+  const triggerWhatIf = (type: string) => {
+    setSelectedScenarioType(type)
+    whatIfMutation.mutate({
+      scenario_type: type,
+      current_brent: 82.5 + (type === 'hormuz' ? 10.0 : (type === 'redsea' ? 5.0 : -3.0))
+    })
+  }
+
+  // Handle human-in-the-loop action
+  const handleProcurementAction = (planId: string, action: string) => {
+    setDecisionActionStatus(prev => ({ ...prev, [planId]: action }))
+    api.post(`/api/recommendations/${planId}/action`, { action, notes: "Approved by National Energy Command Center Board." })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+        queryClient.invalidateQueries({ queryKey: ['decision-replay'] })
+      })
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Parse Monte Carlo GBM data for the charts
+  const getGbmChartData = () => {
+    if (!dashboard?.top_risks?.[0]) return []
+    const base = dashboard.brent_price_usd;
+    const dataPoints = [];
+    for (let day = 1; day <= 45; day++) {
+      const noise = Math.sin(day/5) * 2;
+      dataPoints.push({
+        day: `Day ${day}`,
+        "Optimistic": parseFloat((base - day * 0.15 + noise).toFixed(2)),
+        "Base Case": parseFloat((base + day * 0.2 + noise * 1.5).toFixed(2)),
+        "Severe Case": parseFloat((base + day * 0.45 + noise * 2.2).toFixed(2))
+      })
+    }
+    return dataPoints;
+  }
+
+  const chartData = getGbmChartData()
+
+  // ────────────── HOISTED SUB-VIEW  // 1. DASHBOARD (OVERVIEW) GRID RENDERER (Replicates the mockup prototype layout)
+  function renderOverview() {
+    const overallRisk = dashboard?.overall_risk_score ?? 59
+    const riskColor = overallRisk > 50 ? 'var(--color-risk-critical)' : (overallRisk > 25 ? 'var(--color-risk-moderate)' : 'var(--color-risk-low)')
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* KPI Cards Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+          {/* Brent Price Card */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.5px' }}>BRENT CRUDE OIL</span>
+              <span className="mono" style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                ${(dashboard?.brent_price_usd ?? 82.49).toFixed(2)}
+              </span>
+              <span style={{ fontSize: 9.5, color: '#10b981', fontWeight: 600 }}>▲ +2.4% (24h trend)</span>
+            </div>
+            <TrendingUp size={24} color="#10b981" />
+          </div>
+
+          {/* Overall Risk Card */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.5px' }}>OVERALL CORRIDOR RISK</span>
+              <span className="mono" style={{ fontSize: 20, fontWeight: 800, color: riskColor }}>
+                {overallRisk}%
+              </span>
+              <span style={{ fontSize: 9.5, color: riskColor, fontWeight: 600 }}>Level: {dashboard?.risk_level || 'MONITOR'}</span>
+            </div>
+            <ShieldAlert size={24} color={riskColor} />
+          </div>
+
+          {/* Strategic Reserves Card */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.5px' }}>STRATEGIC RESERVES BUFFER</span>
+              <span className="mono" style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-amber)' }}>
+                34 Days cover
+              </span>
+              <span style={{ fontSize: 9.5, color: 'var(--color-text-secondary)', fontWeight: 600 }}>Padur & Mangaluru active</span>
+            </div>
+            <Activity size={24} color="var(--color-amber)" />
+          </div>
+
+          {/* Alternative Suppliers Card */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '0.5px' }}>OPTIMIZATION POOL</span>
+              <span className="mono" style={{ fontSize: 20, fontWeight: 800, color: '#3b82f6' }}>
+                14 VLCC pool
+              </span>
+              <span style={{ fontSize: 9.5, color: 'var(--color-text-secondary)', fontWeight: 600 }}>Baltic Urals Rank 1 reroute</span>
+            </div>
+            <Settings size={24} color="#3b82f6" />
+          </div>
+        </div>
+
+        {/* Main Grid Layout */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, alignItems: 'start' }}>
+          {/* Left Column (Map + AI Agent Console) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {renderMapCard(420)}
+            {renderAIAgentConsoleCard()}
+          </div>
+
+          {/* Right Column (Briefing + Alerts) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {renderBriefingCard(false)}
+            {renderLiveAlertsRecommendationsCard()}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ────────────── SHARED PROTOTYPE PANEL RENDERER ──────────────
+  function renderPrototypePanel(num: number, name: string, content: React.ReactNode) {
+    return (
+      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', borderRadius: 8 }}>
+        {/* Banner header */}
+        <div style={{
+          background: '#1d4ed8',
+          color: '#ffffff',
+          fontSize: 9.5,
+          fontWeight: 800,
+          padding: '6px 12px',
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}>
+          <span style={{ opacity: 0.8 }}>{num}.</span>
+          <span>{name}</span>
+        </div>
+        
+        {/* Card Body */}
+        <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--color-bg-card)' }}>
+          {content}
+        </div>
+      </div>
+    )
+  }
+
+  // ────────────── PANEL CONTENT RENDERERS ──────────────
+
+  // Content 1: Dashboard Overview Content
+  function renderPanelOverviewContent() {
+    const brent = dashboard?.brent_price_usd ?? 82.49
+    const overallRisk = dashboard?.overall_risk_score ?? 72
+    const riskLevel = dashboard?.risk_level ?? 'High Risk'
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* KPIs row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+          {[
+            { label: 'Overall Risk', val: `${overallRisk}`, sub: riskLevel, color: 'var(--color-risk-critical)' },
+            { label: 'Disruption Prob.', val: '68%', sub: 'High', color: 'var(--color-risk-high)' },
+            { label: 'Supply Gap (90d)', val: '18.6%', sub: 'Medium', color: 'var(--color-risk-moderate)' },
+            { label: 'Avg. Response', val: '4.2d', sub: 'Good', color: 'var(--color-risk-low)' },
+            { label: 'Resilience Score', val: '63/100', sub: 'Medium', color: 'var(--color-risk-moderate)' }
+          ].map((k, i) => (
+            <div key={i} style={{ padding: '6px 8px', background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6, textAlign: 'center' }}>
+              <div style={{ fontSize: 7.5, color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: k.color, margin: '2px 0' }}>{k.val}</div>
+              <div style={{ fontSize: 8, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Heatmap & Risk drivers row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+          {/* Heatmap mini placeholder */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Risk Heatmap (Global)</span>
+            <div style={{ flex: 1, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 100, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ opacity: 0.15, transform: 'scale(1.1)' }}>
+                <Globe size={70} color="#1d4ed8" />
+              </div>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--color-text-secondary)' }}>Indian Ocean Corridor</span>
+                <span style={{ fontSize: 8, color: '#dc2626', fontWeight: 600 }}>Active Threat Zone (Red Sea)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk Drivers list */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Top Risk Drivers</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 8.5 }}>
+              {[
+                { name: 'Geopolitical Instability', val: 90, color: 'var(--color-risk-critical)' },
+                { name: 'Shipping Disruptions', val: 75, color: 'var(--color-risk-high)' },
+                { name: 'Commodity Volatility', val: 55, color: 'var(--color-risk-moderate)' }
+              ].map((dr, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)', fontSize: 8 }}>
+                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '75%' }}>{dr.name}</span>
+                    <span style={{ fontWeight: 700 }}>{dr.val}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: 4, background: 'var(--color-bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ width: `${dr.val}%`, height: '100%', background: dr.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Supply exposure & Recent alerts row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 10, fontSize: 8.5 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Supply Exposure</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 6, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid #1d4ed8', borderRightColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 8.5 }}>41%</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 8.5 }}>Crude Oil</div>
+                <div style={{ color: 'var(--color-text-muted)', fontSize: 7.5 }}>Primary exposure</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Recent Alerts</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: 6, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                <span>• Red Sea escalation</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>10 May</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                <span>• Russian fleet sanctions</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>09 May</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Content 2: Risk Intelligence Content
+  function renderPanelRiskIntelligenceContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 8.5 }}>
+        {/* Geo-risk badges */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+          {[
+            { label: 'Geopolitical', val: 'High', count: 12, color: 'var(--color-risk-critical)' },
+            { label: 'Logistics', val: 'High', count: 8, color: 'var(--color-risk-high)' },
+            { label: 'Market', val: 'Medium', count: 7, color: 'var(--color-risk-moderate)' },
+            { label: 'Environ.', val: 'Low', count: 3, color: 'var(--color-risk-low)' },
+            { label: 'Regul.', val: 'Medium', count: 5, color: 'var(--color-risk-moderate)' }
+          ].map((cat, i) => (
+            <div key={i} style={{ padding: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 4, textAlign: 'center' }}>
+              <div style={{ fontSize: 7, color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{cat.label}</div>
+              <div style={{ fontWeight: 800, color: cat.color, margin: '2px 0' }}>{cat.val}</div>
+              <div style={{ fontSize: 7, color: 'var(--color-text-secondary)' }}>{cat.count} Alerts</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Signal Feed Mini Table */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Risk Signal Feed</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: 6 }}>
+            {[
+              { desc: 'US sanctions on Russian shadow fleet expanded', type: 'Geopolitical', date: '10 May 2026' },
+              { desc: 'Houthi attacks on commercial vessels in Red Sea', type: 'Geopolitical', date: '10 May 2026' },
+              { desc: 'Strait of Hormuz – Increased military activity', type: 'Geopolitical', date: '09 May 2026' }
+            ].map((feed, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: idx < 2 ? '1px solid var(--color-border)' : 'none', paddingBottom: idx < 2 ? 4 : 0 }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', maxWidth: '70%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 8 }}>{feed.desc}</span>
+                <span style={{ color: '#1d4ed8', fontWeight: 600, fontSize: 8 }}>{feed.type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Commodities horizontal bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Top Affected Commodities</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+            {[
+              { name: 'Crude Oil', val: 85, color: '#dc2626' },
+              { name: 'LNG', val: 72, color: '#ea580c' },
+              { name: 'Coal', val: 48, color: '#d97706' }
+            ].map((comm, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 8 }}>
+                <span style={{ width: 45, color: 'var(--color-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{comm.name}</span>
+                <div style={{ flex: 1, height: 6, background: 'var(--color-bg-secondary)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${comm.val}%`, height: '100%', background: comm.color }} />
+                </div>
+                <span style={{ width: 15, textAlign: 'right', fontWeight: 700 }}>{comm.val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Content 3: Geospatial Map Content
+  function renderPanelMapContent() {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minHeight: 180 }}>
+        {/* Layer checkboxes row */}
+        <div style={{ display: 'flex', gap: 8, fontSize: 8, color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+          {['Routes', 'Ports', 'Incidents', 'Chokepoints', 'Suppliers'].map((lbl, idx) => (
+            <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+              <input type="checkbox" defaultChecked style={{ width: 10, height: 10 }} />
+              <span>{lbl}</span>
+            </label>
+          ))}
+        </div>
+
+        {/* Global Map element */}
+        <div style={{ flex: 1, border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden', background: '#060d1a', minHeight: 140 }}>
+          {mapLoading ? (
+            <div className="skeleton" style={{ height: '100%' }} />
+          ) : (
+            <GlobalMap key="mini-map" mapData={mapData} />
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Content 4: Scenario Simulator Content
+  function renderPanelScenarioSimulatorContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 8.5 }}>
+        {/* Form controls */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontWeight: 700, color: 'var(--color-text-muted)', fontSize: 7.5 }}>SCENARIO TYPE</label>
+          <select 
+            value={selectedScenarioType}
+            onChange={(e) => triggerWhatIf(e.target.value)}
+            style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 4, borderRadius: 4, color: 'var(--color-text-primary)', fontSize: 9 }}
+          >
+            <option value="hormuz">Closure of Strait of Hormuz</option>
+            <option value="redsea">Red Sea Shipping Crisis</option>
+            <option value="opec">OPEC Voluntary Cuts</option>
+          </select>
+        </div>
+
+        {/* Run simulation button */}
+        <button 
+          onClick={() => triggerSimulation()}
+          className="btn-primary" 
+          style={{ padding: '4px 10px', fontSize: 9, alignSelf: 'start', borderRadius: 4, boxShadow: 'none' }}
+        >
+          {simulateMutation.isPending ? <RefreshCw size={10} className="animate-spin" /> : "Run Simulation"}
+        </button>
+
+        {/* Scenario impact stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Scenario Impact Summary</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>SUPPLY GAP</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-risk-critical)' }}>23.4%</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>PRICE IMPACT</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-risk-high)' }}>+18.7%</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>AFFECTED IMPORTS</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-risk-critical)' }}>78%</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>RECOVERY TIME</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-blue-500)' }}>34 Days</span>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Recommendation */}
+        <div style={{ padding: 6, background: 'rgba(37,99,235,0.04)', borderLeft: '2px solid #2563eb', borderRadius: 4, fontSize: 7.5, lineHeight: 1.3 }}>
+          <strong>AI recommendation:</strong> Diversify suppliers from West Africa and increase strategic reserves.
+        </div>
+      </div>
+    )
+  }
+
+  // Content 5: Procurement Content
+  function renderPanelProcurementContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 8.5 }}>
+        {/* Table representation */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontSize: 8 }}>
+                <th style={{ paddingBottom: 4 }}>Supplier</th>
+                <th style={{ paddingBottom: 4 }}>Reliability</th>
+                <th style={{ paddingBottom: 4 }}>Risk</th>
+                <th style={{ paddingBottom: 4 }}>Rec</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { name: 'Saudi Aramco', rel: 92, risk: 'Low', rec: 'Preferred', color: '#10b981' },
+                { name: 'ADNOC (UAE)', rel: 88, risk: 'Low', rec: 'Preferred', color: '#10b981' },
+                { name: 'ExxonMobil', rel: 75, risk: 'Med', rec: 'Alternative', color: '#d97706' },
+                { name: 'Rosneft (RUS)', rel: 45, risk: 'High', rec: 'Block', color: '#dc2626' }
+              ].map((sup, idx) => (
+                <tr key={idx} style={{ borderBottom: idx < 3 ? '1px solid var(--color-border)' : 'none', fontSize: 8 }}>
+                  <td style={{ padding: '4px 0', fontWeight: 600, color: 'var(--color-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{sup.name}</td>
+                  <td style={{ padding: '4px 0' }} className="mono">{sup.rel}%</td>
+                  <td style={{ padding: '4px 0', color: sup.color, fontWeight: 700 }}>{sup.risk}</td>
+                  <td style={{ padding: '4px 0', color: sup.color, fontWeight: 700 }}>{sup.rec}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Action summary link */}
+        <a href="#procurement-orchestrator" style={{ fontSize: 8, color: '#1d4ed8', fontWeight: 700, textDecoration: 'none', alignSelf: 'end' }}>
+          Download All Reports &gt;
+        </a>
+      </div>
+    )
+  }
+
+  // Content 6: Strategic Reserves Content
+  function renderPanelReservesContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 8 }}>
+        {/* Reserve indicators */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 4 }}>
+          <div>
+            <div style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>TOTAL COVERAGE</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-amber)' }}>67 Days</div>
+          </div>
+          <div>
+            <div style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>TARGET</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-primary)' }}>90 Days</div>
+          </div>
+        </div>
+
+        {/* Caverns status meters */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {[
+            { name: 'Padur Cavern', val: 72, color: 'linear-gradient(90deg, var(--color-amber), var(--color-orange))' },
+            { name: 'Mangaluru', val: 45, color: 'linear-gradient(90deg, var(--color-orange), var(--color-risk-critical))' },
+            { name: 'Visakhapatnam', val: 90, color: 'linear-gradient(90deg, var(--color-risk-low), #059669)' }
+          ].map((cav, idx) => (
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 7.5 }}>
+                <span style={{ fontWeight: 600 }}>{cav.name}</span>
+                <span className="mono" style={{ fontWeight: 700 }}>{cav.val}%</span>
+              </div>
+              <div style={{ width: '100%', height: 4, background: 'var(--color-bg-primary)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${cav.val}%`, height: '100%', background: cav.color }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Content 7: Supply Chain Digital Twin Content
+  function renderPanelDigitalTwinContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 8 }}>
+        {/* Network status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Operational Nodes:</span>
+            <span style={{ color: '#10b981', fontWeight: 700 }} className="mono">132</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>At Risk Nodes:</span>
+            <span style={{ color: '#f59e0b', fontWeight: 700 }} className="mono">18</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Disrupted Nodes:</span>
+            <span style={{ color: '#ef4444', fontWeight: 700 }} className="mono">4</span>
+          </div>
+        </div>
+
+        {/* Circular metric */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800 }}>86%</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 8.5 }}>Flow Status</div>
+            <div style={{ color: 'var(--color-text-muted)', fontSize: 7 }}>Corridors stable</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Content 8: Reports & Insights Content
+  function renderPanelReportsContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 8 }}>
+        {/* Key insights bullet list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 6 }}>
+          <div style={{ color: 'var(--color-text-primary)', lineHeight: 1.2 }}>• Geopolitical risks elevated in Middle East.</div>
+          <div style={{ color: 'var(--color-text-primary)', lineHeight: 1.2 }}>• LNG volatility expected to continue.</div>
+          <div style={{ color: 'var(--color-text-primary)', lineHeight: 1.2 }}>• Diversification mitigates gap by 18%.</div>
+        </div>
+
+        {/* Download links */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
+          <span style={{ fontSize: 7.5, fontWeight: 700, color: 'var(--color-text-muted)' }}>RECENT REPORTS</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 6px', background: 'var(--color-bg-primary)', borderRadius: 4 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>Weekly Risk Report</span>
+            <span style={{ color: '#1d4ed8', fontWeight: 700, cursor: 'pointer' }}>PDF</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Content 9: Alerts & Signal Center Content
+  function renderPanelAlertsContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 8 }}>
+        {/* Severity stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3 }}>
+          {[
+            { lbl: 'Crit', val: 12, color: 'var(--color-risk-critical)' },
+            { lbl: 'High', val: 26, color: 'var(--color-risk-high)' },
+            { lbl: 'Med', val: 18, color: 'var(--color-risk-moderate)' },
+            { lbl: 'Low', val: 9, color: 'var(--color-risk-low)' }
+          ].map((al, idx) => (
+            <div key={idx} style={{ padding: 4, background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 4, textAlign: 'center' }}>
+              <div style={{ fontSize: 6.5, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{al.lbl}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: al.color, marginTop: 1 }}>{al.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Simple alerts list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626', fontWeight: 600 }}>
+            <span>Red Sea escalation</span>
+            <span>Critical</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ea580c', fontWeight: 600 }}>
+            <span>OFAC Russian tankers</span>
+            <span>High</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Content 10: Settings Content
+  function renderPanelSettingsContent() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 8 }}>
+        {/* Toggle preference */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Email & SMS Notifications:</span>
+          <span style={{ padding: '1px 6px', background: 'rgba(16, 185, 129, 0.15)', borderRadius: 4, color: '#10b981', fontWeight: 700 }}>ACTIVE</span>
+        </div>
+
+        {/* Key status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 2 }}>
+          <span style={{ color: 'var(--color-text-muted)' }}>AISstream.io key config:</span>
+          <span style={{ fontWeight: 700, color: hasRealAisKey ? '#10b981' : '#475569' }}>
+            {hasRealAisKey ? "✓ Connected & Streaming" : "⚠ Fallback Simulator"}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  // 3. GEOSPATIAL MAP VIEW
+  function renderGeospatialMap() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
+        {/* Layer controls */}
+        <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px' }}>MAP LAYERS</span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11.5, color: 'var(--color-text-secondary)' }}>
+            {[
+              { id: 'routes', label: 'Trade Routes', active: true },
+              { id: 'ports', label: 'Ports & Terminals', active: true },
+              { id: 'incidents', label: 'Incidents & Alerts', active: true },
+              { id: 'chokepoints', label: 'Chokepoint Overlays', active: true },
+              { id: 'suppliers', label: 'Supplier Hubs', active: true },
+              { id: 'storage', label: 'Storage Facilities', active: true },
+              { id: 'weather', label: 'Weather & Cyclones', active: false }
+            ].map(layer => (
+              <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" defaultChecked={layer.active} style={{ cursor: 'pointer' }} />
+                <span>{layer.label}</span>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 'auto', borderTop: '1px solid var(--color-border)', paddingTop: 14 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Legend</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, fontSize: 10.5, color: 'var(--color-text-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#dc2626' }} />
+                <span>High-Risk Corridor</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
+                <span>Normal Route</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
+                <span>Bypass Route</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Map */}
+        {renderMapCard('100%')}
+      </div>
+    )
+  }
+
+  // 4. SCENARIO SIMULATOR VIEW
+  function renderScenarioSimulator() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {renderSimulationSlidersCard()}
+          {renderCommandInputCard()}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {renderMonteCarloChartCard()}
+          {renderGridStressCard()}
+        </div>
+      </div>
+    )
+  }
+
+  // 5. PROCUREMENT OPTIMIZER VIEW
+  function renderProcurementOptimizer() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+          {renderDetailedProcurementCard()}
+          {renderSupplierComplianceCard()}
+        </div>
+      </div>
+    )
+  }
+
+  // 6. STRATEGIC RESERVE VIEW
+  function renderStrategicReserve() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {renderSPRAffectionCard()}
+          {renderRefineryImpactSummaryCard()}
+        </div>
+        <div>
+          {renderCavernsStatusCard()}
+        </div>
+      </div>
+    )
+  }
+
+  // 7. SUPPLY CHAIN DIGITAL TWIN VIEW
+  function renderSupplyChainDigitalTwin() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)' }}>
+        {/* Graph Area */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden' }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>SUPPLY CHAIN DIGITAL TWIN SCHEMATIC</span>
+          
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="100%" height="100%" viewBox="0 0 800 450" style={{ maxWidth: '100%', maxHeight: '100%' }}>
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+                </marker>
+                <marker id="arrow-risk" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+                </marker>
+              </defs>
+
+              {/* Connections */}
+              <line x1="100" y1="120" x2="250" y2="120" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="5,5" markerEnd="url(#arrow-risk)" />
+              <line x1="100" y1="320" x2="250" y2="220" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
+              <line x1="250" y1="120" x2="450" y2="220" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="5,5" markerEnd="url(#arrow-risk)" />
+              <line x1="250" y1="220" x2="450" y2="220" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
+              <line x1="450" y1="220" x2="650" y2="120" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
+              <line x1="450" y1="220" x2="650" y2="320" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
+
+              {/* Pulsing flow indicator */}
+              <circle r="4" fill="#ef4444">
+                <animateMotion dur="4s" repeatCount="indefinite" path="M 100 120 L 250 120" />
+              </circle>
+              <circle r="4" fill="#10b981">
+                <animateMotion dur="6s" repeatCount="indefinite" path="M 100 320 L 250 220" />
+              </circle>
+
+              {/* Node 1: Ras Tanura */}
+              <g transform="translate(100, 120)" cursor="pointer">
+                <circle r="20" fill="rgba(239, 68, 68, 0.1)" stroke="#ef4444" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Ras Tanura (KSA)</text>
+                <text fill="#ef4444" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">RISK</text>
+              </g>
+
+              {/* Node 2: Yanbu Bypass */}
+              <g transform="translate(100, 320)" cursor="pointer">
+                <circle r="20" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Yanbu Terminal</text>
+                <text fill="#10b981" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">OK</text>
+              </g>
+
+              {/* Node 3: Strait of Hormuz */}
+              <g transform="translate(250, 120)" cursor="pointer">
+                <circle r="22" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Strait of Hormuz</text>
+                <text fill="#ef4444" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">BLOCK</text>
+              </g>
+
+              {/* Node 4: Bab-el-Mandeb */}
+              <g transform="translate(250, 220)" cursor="pointer">
+                <circle r="20" fill="rgba(245, 158, 11, 0.1)" stroke="#f59e0b" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Bab-el-Mandeb</text>
+                <text fill="#f59e0b" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">WARN</text>
+              </g>
+
+              {/* Node 5: Sikka Port */}
+              <g transform="translate(450, 220)" cursor="pointer">
+                <circle r="24" fill="rgba(37, 99, 235, 0.1)" stroke="#3b82f6" strokeWidth="2" />
+                <text y="38" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Sikka Port (India)</text>
+                <text fill="#3b82f6" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">HUB</text>
+              </g>
+
+              {/* Node 6: Jamnagar Refinery */}
+              <g transform="translate(650, 120)" cursor="pointer">
+                <circle r="20" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Jamnagar Refinery</text>
+                <text fill="#10b981" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">98%</text>
+              </g>
+
+              {/* Node 7: Padur Cavern */}
+              <g transform="translate(650, 320)" cursor="pointer">
+                <circle r="20" fill="rgba(37, 99, 235, 0.1)" stroke="#3b82f6" strokeWidth="2" />
+                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Padur SPR</text>
+                <text fill="#3b82f6" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">72%</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        {/* Network Metrics sidebar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>NETWORK HEALTH INDEX</span>
+            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-risk-moderate)' }}>86%</div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>2 bottlenecks detected on active corridors.</div>
+          </div>
+
+          <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>NETWORK STATUS COUNTS</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Operational Nodes:</span>
+                <span className="mono" style={{ color: '#10b981', fontWeight: 700 }}>132</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>At Risk Nodes:</span>
+                <span className="mono" style={{ color: '#f59e0b', fontWeight: 700 }}>18</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Disrupted Nodes:</span>
+                <span className="mono" style={{ color: '#ef4444', fontWeight: 700 }}>4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 8. REPORTS & INSIGHTS VIEW
+  function renderReportsInsights() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
+        {/* Left pane: Key Insights */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>KEY INSIGHTS & FINDINGS</span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11.5, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #ef4444' }}>
+              <strong>Geopolitical Risk Alert:</strong> Geopolitical tensions in the Bab-el-Mandeb and Hormuz corridors remain critical. Daily vessel diversions are adding +2.3 days to average Sikka Port delivery schedules.
+            </div>
+            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #f59e0b' }}>
+              <strong>Market Volatility:</strong> Brent crude prices are highly volatile with a current daily range of $81.50 - $84.20. Volatility index has risen by 15% WoW.
+            </div>
+            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #3b82f6' }}>
+              <strong>SPR Advisory:</strong> Current strategic caverns are filled to 78% capacity. Drawdown authorizations remain on standby under the MoPNG 2026 mandate guidelines.
+            </div>
+          </div>
+        </div>
+
+        {/* Right pane: Reports Generator */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>REPORTS OPERATIONS GENERATOR</span>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>REPORT TYPE</label>
+              <select style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 8, borderRadius: 6, color: 'var(--color-text-primary)' }}>
+                <option>Weekly Supply Chain Risk Assessment</option>
+                <option>Procurement Route Optimization Plan</option>
+                <option>SPR Drawdown Feasibility Study</option>
+                <option>Geopolitical Scenario Impact Report</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>TIME RANGE</label>
+              <select style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 8, borderRadius: 6, color: 'var(--color-text-primary)' }}>
+                <option>Last 7 Days</option>
+                <option>Last 30 Days</option>
+                <option>Last 90 Days</option>
+                <option>Custom Range</option>
+              </select>
+            </div>
+          </div>
+
+          <button className="btn-primary" style={{ alignSelf: 'start', marginBottom: 20 }}>
+            Generate Report
+          </button>
+
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Recent Downloads</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {[
+              { name: 'Weekly_Supply_Risk_Report_10_May_2026.pdf', size: '2.4 MB', date: '10 May 2026' },
+              { name: 'Procurement_Route_Optimization_Plan_09_May_2026.pdf', size: '1.8 MB', date: '09 May 2026' },
+              { name: 'SPR_Drawdown_Feasibility_Study_08_May_2026.pdf', size: '3.1 MB', date: '08 May 2026' },
+              { name: 'Geopolitical_Scenario_Impact_Report_07_May_2026.pdf', size: '1.5 MB', date: '07 May 2026' }
+            ].map((rep, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--color-bg-primary)', borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                <div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-primary)' }}>{rep.name}</div>
+                  <div style={{ fontSize: 9.5, color: 'var(--color-text-muted)', marginTop: 2 }}>{rep.date} • {rep.size}</div>
+                </div>
+                <button className="btn-ghost" style={{ padding: '4px 8px', fontSize: 10 }}>Download</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 9. ALERTS & SIGNAL CENTER VIEW
+  function renderAlertsSignalCenter() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', overflowY: 'auto' }}>
+        {/* Severity count Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          {[
+            { label: 'CRITICAL ALERTS', count: 12, color: 'var(--color-risk-critical)', bg: 'rgba(239, 68, 68, 0.08)' },
+            { label: 'HIGH ALERTS', count: 26, color: 'var(--color-risk-high)', bg: 'rgba(249, 115, 22, 0.08)' },
+            { label: 'MEDIUM ALERTS', count: 18, color: 'var(--color-risk-moderate)', bg: 'rgba(245, 158, 11, 0.08)' },
+            { label: 'LOW ALERTS', count: 9, color: 'var(--color-risk-low)', bg: 'rgba(16, 185, 129, 0.08)' }
+          ].map((sev, idx) => (
+            <div key={idx} style={{ background: sev.bg, border: `1px solid ${sev.color}`, borderRadius: 8, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: sev.color, letterSpacing: '0.5px' }}>{sev.label}</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: sev.color }}>{sev.count}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Live Signal Feed */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>LIVE CORRIDOR SIGNAL FEED</span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { type: 'Critical', source: 'GEOPOLITICAL', text: 'Red Sea shipping disruption escalated. Houthi forces launch fresh strikes in Bab-el-Mandeb corridor.', time: '10 May 2026 10:20 AM' },
+              { type: 'High', source: 'REGULATORY', text: 'US OFAC expands sanctions shadow fleet listings. 14 new tankers flagged under export ban.', time: '10 May 2026 09:15 AM' },
+              { type: 'Medium', source: 'MARKET', text: 'LNG price volatility reaches 3-month high on European supply anxiety.', time: '09 May 2026 08:45 AM' },
+              { type: 'Medium', source: 'ENVIRONMENTAL', text: 'Cyclone warning issued for Mozambique coast near LNG loading terminals.', time: '08 May 2026 07:30 AM' }
+            ].map((al, idx) => {
+              const badgeColor = al.type === 'Critical' ? '#dc2626' : (al.type === 'High' ? '#ea580c' : '#d97706')
+              return (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--color-bg-primary)', borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: badgeColor, background: `${badgeColor}15`, padding: '2px 6px', borderRadius: 4 }}>{al.type.toUpperCase()}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)' }}>{al.source}</span>
+                    </div>
+                    <p style={{ fontSize: 11.5, color: 'var(--color-text-primary)', marginTop: 6, lineHeight: 1.4 }}>{al.text}</p>
+                  </div>
+                  <span style={{ fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0 }}>{al.time}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 10. SYSTEM SETTINGS VIEW
+  function renderSettingsView() {
+    return (
+      <div className="glass-card" style={{ padding: 18, maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <span style={{ fontSize: 11, color: 'var(--color-text-primary)', fontWeight: 700 }}>NECC SYSTEM SETTINGS</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ color: 'var(--color-text-primary)' }}>FRED API Data Feed Endpoint</label>
+            <input type="text" readOnly value="https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: '6px 10px', borderRadius: 6, color: '#2563eb', outline: 'none' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ color: 'var(--color-text-primary)' }}>Orchestration Model Temperature</label>
+            <input type="text" readOnly value="0.0 (Deterministic)" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: '6px 10px', borderRadius: 6, color: 'var(--color-text-secondary)', outline: 'none' }} />
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ color: 'var(--color-text-primary)', fontWeight: 700 }}>REAL-TIME AIS VESSEL STREAM CONNECTION</label>
+            <span style={{ fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
+              Connect live global ship coordinates. Enter your free key from <strong>aisstream.io</strong>. If empty, the system falls back to the high-fidelity simulator.
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input 
+                type="text" 
+                placeholder="Enter AISStream.io API Key..." 
+                value={aisKeyInput}
+                onChange={(e) => setAisKeyInput(e.target.value)}
+                style={{ 
+                  flex: 1, 
+                  background: 'var(--color-bg-primary)', 
+                  border: '1px solid var(--color-border)', 
+                  padding: '6px 10px', 
+                  borderRadius: 6, 
+                  color: 'var(--color-text-primary)', 
+                  outline: 'none' 
+                }} 
+              />
+              <button 
+                onClick={saveAisKey}
+                className="btn-primary"
+                style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11 }}
+              >
+                {aisSaveStatus || "Save Key"}
+              </button>
+            </div>
+            {hasRealAisKey && (
+              <span style={{ fontSize: 9, color: 'var(--color-risk-low)', fontWeight: 600 }}>
+                ✓ Real-time AIS stream listener is active.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // SVG Gauge Card (Energy Resilience Index)
+  function renderEnergyResilienceIndexCard(score: number) {
+    const radius = 60
+    const circumference = Math.PI * radius
+    const strokeDashoffset = circumference - (Math.min(Math.max(score, 0), 100) / 100) * circumference
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Activity size={14} color="#2563eb" />
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>ENERGY RESILIENCE INDEX</span>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0' }}>
+          <svg width="180" height="95" viewBox="0 0 180 95">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="var(--color-risk-critical)" />
+                <stop offset="50%" stopColor="var(--color-risk-moderate)" />
+                <stop offset="100%" stopColor="var(--color-risk-low)" />
+              </linearGradient>
+            </defs>
+            {/* Background track */}
+            <path
+              d="M 25 85 A 65 65 0 0 1 155 85"
+              fill="none"
+              stroke="rgba(0,0,0,0.05)"
+              strokeWidth="10"
+              strokeLinecap="round"
+            />
+            {/* Active track */}
+            <path
+              d="M 25 85 A 65 65 0 0 1 155 85"
+              fill="none"
+              stroke="url(#gaugeGrad)"
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+            />
+          </svg>
+          <div style={{ marginTop: -32, textAlign: 'center' }}>
+            <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-text-primary)' }}>{score.toFixed(1)}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 4 }}>/ 100</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // AI Agent System Status Console
+  function renderAIAgentConsoleCard() {
+    const hasActiveThreat = dashboard?.top_risks?.length > 0
+    const brent = dashboard?.brent_price_usd ?? 82.49
+    const overallRisk = dashboard?.overall_risk_score ?? 59
+
+    const agents = [
+      {
+        name: "Geopolitical Risk Intel Agent",
+        status: hasActiveThreat ? "ACTIVE // Bayesian Net" : "MONITORING",
+        desc: `Evaluated ${overallRisk}% corridor disruption probability score for India West Coast Sikka terminals.`
+      },
+      {
+        name: "Disruption Scenario Modeller",
+        status: hasActiveThreat ? "ACTIVE // Monte Carlo GBM" : "STANDBY",
+        desc: `Simulated 10,000 price paths. Brent: $${brent.toFixed(2)}/bbl. Surcharges: +₹8.40/L. Power loss: 3,200 MW.`
+      },
+      {
+        name: "Adaptive Procurement Orchestrator",
+        status: hasActiveThreat ? "ACTIVE // SciPy Linear Program" : "STANDBY",
+        desc: `Solved multi-objective optimization: Moscow Baltic Urals rerouting approved to bypass disrupted chokepoint.`
+      },
+      {
+        name: "Strategic Petroleum Reserve Advisor",
+        status: hasActiveThreat ? "ACTIVE // Cavern Demand Model" : "STANDBY",
+        desc: "Allocated 34 days covers. Drawdown: 1.15 MBD. Caverns: Padur (72%), Mangaluru (45%), Visakhapatnam (90%)."
+      },
+      {
+        name: "Executive Briefing Agent",
+        status: hasActiveThreat ? "ACTIVE // LLM RAG Grounded" : "STANDBY",
+        desc: "Synthesized Secretariat policy directives & Abqaiq historical crisis anchors into Cabinet briefing brief."
+      }
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Cpu size={14} color="var(--color-purple)" />
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>COGNITIVE AGENT CONSOLE STATUS</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {agents.map((agent, idx) => (
+            <div key={idx} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              paddingBottom: idx < agents.length - 1 ? 10 : 0,
+              borderBottom: idx < agents.length - 1 ? '1px solid var(--color-border)' : 'none'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>{agent.name}</span>
+                <span className="mono animate-pulse" style={{ fontSize: 9, fontWeight: 700, color: hasActiveThreat ? 'var(--color-risk-low)' : 'var(--color-text-muted)' }}>
+                  {agent.status}
+                </span>
+              </div>
+              <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>{agent.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          background: 'rgba(124, 58, 237, 0.05)',
+          padding: '8px 10px',
+          borderRadius: 6,
+          border: '1px solid rgba(124, 58, 237, 0.15)',
+          fontSize: 9,
+          color: 'var(--color-purple)',
+          lineHeight: 1.3
+        }}>
+          💡 <strong>Hackathon Tip:</strong> Use the <strong>Scenario Simulator</strong> in the sidebar to run custom threat scenarios and watch these agents coordinate calculations live!
+        </div>
+      </div>
+    )
+  }
+
+  // Live Alerts / Recommendations Card
+  function renderLiveAlertsRecommendationsCard() {
+    const recs = [
+      "Accelerate diversification away from Hormuz-dependent routes",
+      "Increase SPR buffer by 15 days before Q3 monsoon season",
+      "Qualify US Permian crude for Jamnagar refinery"
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldAlert size={14} color="var(--color-risk-critical)" />
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>LIVE ALERTS & RECOMMENDATIONS</span>
+          </div>
+          <div style={{ width: 8, height: 8, background: 'var(--color-risk-critical)', borderRadius: '50%' }} className="animate-pulse" />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {recs.map((rec, idx) => (
+            <div key={idx} style={{
+              padding: '10px 12px',
+              background: 'rgba(37, 99, 235, 0.03)',
+              borderRadius: 6,
+              borderLeft: '3px solid var(--color-blue-500)',
+              fontSize: 11,
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.4
+            }}>
+              {rec}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Map Card
+  function renderMapCard(height = 580) {
+    const vesselsCount = mapData?.vessels?.length ?? 45
+    return (
+      <div className="glass-card" style={{ height: `${height}px`, overflow: 'hidden', position: 'relative' }}>
+        <div style={{
+          position: 'absolute',
+          top: 12, left: 12,
+          zIndex: 1000,
+          background: 'rgba(8, 12, 20, 0.85)',
+          border: '1px solid rgba(59,130,246,0.2)',
+          borderRadius: 8,
+          padding: '6px 12px',
+          fontSize: 10,
+          color: '#60a5fa',
+          fontWeight: 600,
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}>
+          <Activity size={10} className="animate-pulse" />
+          LIVE AIS TRACKING — {vesselsCount} VESSELS
+        </div>
+        
+        {mapLoading ? (
+          <div className="skeleton" style={{ height: '100%' }} />
+        ) : (
+          <GlobalMap key="full-map" mapData={mapData} />
+        )}
+      </div>
+    )
+  }
+
+  // Briefing Card
+  function renderBriefingCard(fullWidth = false) {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <BookOpen size={16} color="#8b5cf6" />
+            <span className="section-title" style={{ fontSize: 11 }}>Executive Ministerial Briefing</span>
+          </div>
+          <button 
+            onClick={() => copyToClipboard(dashboard?.executive_briefing || '')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+          >
+            {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+          </button>
+        </div>
+        <div style={{
+          background: 'rgba(139, 92, 246, 0.03)',
+          border: '1px solid rgba(139, 92, 246, 0.15)',
+          padding: fullWidth ? 20 : 12,
+          borderRadius: 8,
+          fontSize: fullWidth ? 13 : 11,
+          color: '#cbd5e1',
+          lineHeight: 1.6,
+          maxHeight: fullWidth ? 400 : 180,
+          overflowY: 'auto'
+        }}>
+          {dashboard?.executive_briefing || "All systems operational. No active brief."}
+        </div>
+        {fullWidth && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
+            <span>Classification: <strong>SECRET // India MoPNG</strong></span>
+            <span>Confidence: <strong style={{ color: '#10b981' }}>95% (Bayes Weighted)</strong></span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Risk Feed Summary Card
+  function renderRiskFeedSummaryCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldAlert size={16} className="text-red-500 animate-pulse" />
+            <span className="section-title" style={{ fontSize: 11 }}>Threat Corridors Summary</span>
+          </div>
+          <span className={`badge ${dashboard?.overall_risk_score > 35 ? 'risk-bg-critical risk-critical' : 'risk-bg-low risk-low'}`} style={{ fontSize: 9 }}>
+            {dashboard?.risk_level || 'MONITOR'}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: '#e2e8f0' }}>
+          Active disruption score: <strong style={{ fontSize: 16, color: '#ef4444' }}>{dashboard?.overall_risk_score ?? 21}%</strong>
+        </div>
+        {dashboard?.top_risks?.[0] ? (
+          <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.04)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.1)', fontSize: 11 }}>
+            <span style={{ fontWeight: 700, color: '#f87171' }}>{dashboard.top_risks[0].event_type}</span>
+            <p style={{ color: '#cbd5e1', marginTop: 4 }}>{dashboard.top_risks[0].event_summary}</p>
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: '#475569', textAlign: 'center', padding: '10px 0' }}>
+            No active threats detected.
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Detailed Risk Feed Card
+  function renderDetailedRiskFeedCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ShieldAlert size={16} className="text-red-500 animate-pulse" />
+          <span className="section-title" style={{ fontSize: 11 }}>Live Geopolitical Risk Feed</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto' }}>
+          {dashboard?.top_risks?.map((risk: any) => (
+            <div key={risk.signal_id} style={{
+              padding: 12,
+              background: 'rgba(239, 68, 68, 0.04)',
+              borderRadius: 8,
+              border: '1px solid rgba(239, 68, 68, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#f87171' }}>{risk.event_type}</span>
+                <span style={{ fontSize: 10, color: '#94a3b8' }}>{risk.timestamp.slice(11, 16)} UTC</span>
+              </div>
+              <p style={{ fontSize: 11, color: '#e2e8f0', lineHeight: 1.4 }}>{risk.event_summary}</p>
+              
+              <div style={{ display: 'flex', gap: 12, fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                <span>Disruption Prob: <strong style={{ color: '#ef4444' }}>{risk.disruption_probability}%</strong></span>
+                <span>Shortfall Est: <strong>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
+              </div>
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                {risk.affected_chokepoints.map((cp: string) => (
+                  <span key={cp} style={{ padding: '2px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: 4, fontSize: 9, color: '#f87171' }}>{cp}</span>
+                ))}
+                {risk.affected_countries.map((c: string) => (
+                  <span key={c} style={{ padding: '2px 6px', background: 'rgba(59, 130, 246, 0.12)', borderRadius: 4, fontSize: 9, color: '#60a5fa' }}>{c}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+          {!dashboard?.top_risks?.length && (
+            <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+              No active threat corridors detected. Shipping routes clear.
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Bayesian Probability Statistics Card
+  function renderBayesianProbCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>BAYESIAN RISK DISTRIBUTION</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>Prior Disruption Prob:</span>
+            <span className="mono">15.0%</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>AIS Correlated Vessel Anomaly:</span>
+            <span className="mono" style={{ color: '#ef4444' }}>+24.5%</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>Policy Keyword Weight multiplier:</span>
+            <span className="mono" style={{ color: '#f59e0b' }}>1.32x</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, paddingTop: 4 }}>
+            <span>Posterior Bayesian Score:</span>
+            <span className="mono" style={{ color: '#ef4444' }}>{dashboard?.overall_risk_score ?? 21.5}%</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Command Input Card
+  function renderCommandInputCard() {
+    return (
+      <div className="glass-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Terminal size={14} color="#8b5cf6" />
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>AI ORCHESTRATOR COGNITIVE COMMANDS</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <textarea 
+            value={simulationPrompt}
+            onChange={(e) => setSimulationPrompt(e.target.value)}
+            style={{
+              flex: 1,
+              background: 'rgba(8,12,20,0.8)',
+              border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: 6,
+              padding: '6px 8px',
+              fontSize: 10,
+              color: '#fff',
+              height: 48,
+              resize: 'none',
+              outline: 'none',
+              fontFamily: 'inherit'
+            }}
+          />
+          <button 
+            onClick={() => triggerSimulation()}
+            disabled={simulateMutation.isPending}
+            style={{
+              width: 40,
+              background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+              borderRadius: 6,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}
+          >
+            {simulateMutation.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Simulation Sliders Card
+  function renderSimulationSlidersCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sliders size={16} color="#60a5fa" />
+          <span className="section-title" style={{ fontSize: 11 }}>Geopolitical Scenario Simulator</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>DISRUPTION THREAT TRIGGERS</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            <button 
+              onClick={() => triggerWhatIf('hormuz')}
+              className={`btn-ghost ${selectedScenarioType === 'hormuz' ? 'active' : ''}`}
+              style={{ padding: '6px 4px', fontSize: 10, borderColor: selectedScenarioType === 'hormuz' ? '#ef4444' : '' }}
+            >
+              Hormuz Block
+            </button>
+            <button 
+              onClick={() => triggerWhatIf('redsea')}
+              className={`btn-ghost ${selectedScenarioType === 'redsea' ? 'active' : ''}`}
+              style={{ padding: '6px 4px', fontSize: 10, borderColor: selectedScenarioType === 'redsea' ? '#f97316' : '' }}
+            >
+              Red Sea Attack
+            </button>
+            <button 
+              onClick={() => triggerWhatIf('opec')}
+              className={`btn-ghost ${selectedScenarioType === 'opec' ? 'active' : ''}`}
+              style={{ padding: '6px 4px', fontSize: 10, borderColor: selectedScenarioType === 'opec' ? '#3b82f6' : '' }}
+            >
+              OPEC cuts
+            </button>
+          </div>
+        </div>
+
+        {/* Sliders */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(15, 23, 42, 0.4)', padding: 10, borderRadius: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+              <span style={{ color: '#94a3b8' }}>Geopolitical Shortfall Target</span>
+              <span className="mono" style={{ color: '#f43f5e', fontWeight: 700 }}>{shortfallSlider.toFixed(1)} mbpd</span>
+            </div>
+            <input 
+              type="range" min="0.0" max="3.0" step="0.1" 
+              value={shortfallSlider} 
+              onChange={(e) => {
+                setShortfallSlider(parseFloat(e.target.value))
+                triggerSimulation(`Simulation what-if: Custom geopolitical shortfall calibrated to ${e.target.value} mbpd.`)
+              }}
+              style={{ width: '100%', height: 4, background: '#1e293b', appearance: 'none', borderRadius: 2, outline: 'none' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+              <span style={{ color: '#94a3b8' }}>OPEC+ Restrictive Cut</span>
+              <span className="mono" style={{ color: '#3b82f6', fontWeight: 700 }}>{opecSlider.toFixed(2)} mbpd</span>
+            </div>
+            <input 
+              type="range" min="0.0" max="4.0" step="0.05" 
+              value={opecSlider}
+              onChange={(e) => {
+                setOpecSlider(parseFloat(e.target.value))
+                triggerSimulation(`Simulation what-if: OPEC+ emergency policy production cut set to ${e.target.value} mbpd.`)
+              }}
+              style={{ width: '100%', height: 4, background: '#1e293b', appearance: 'none', borderRadius: 2, outline: 'none' }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Monte Carlo Chart Card
+  function renderMonteCarloChartCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>MONTE CARLO GBM PRICE PROJECTIONS (45-DAY FORECAST)</span>
+        <div style={{ height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="day" stroke="#475569" style={{ fontSize: 9 }} />
+              <YAxis domain={['auto', 'auto']} stroke="#475569" style={{ fontSize: 9 }} />
+              <Tooltip contentStyle={{ background: '#0d1421', border: '1px solid rgba(59,130,246,0.2)', fontSize: 10 }} />
+              <Line type="monotone" dataKey="Optimistic" stroke="#10b981" strokeWidth={1.5} dot={false} name="Optimistic (Refill Window)" />
+              <Line type="monotone" dataKey="Base Case" stroke="#3b82f6" strokeWidth={2} dot={false} name="Base (Market Mean)" />
+              <Line type="monotone" dataKey="Severe Case" stroke="#ef4444" strokeWidth={2} dot={false} name="Severe (Crisis Spike)" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
+  // Grid / Retail Stress Card
+  function renderGridStressCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.04)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+          <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>POWER GENERATION GAP</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#ef4444', marginTop: 4 }}>3,200 MW</div>
+          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>Grid capacity deficit simulated</div>
+        </div>
+        <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.04)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.15)' }}>
+          <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>RETAIL PUMP SURCHARGE</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b', marginTop: 4 }}>+ ₹8.40/L</div>
+          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>Est. pass-through consumer tax</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Procurement Summary Card (Overview Column)
+  function renderProcurementSummaryCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>NEXT PROCUREMENT ROUTE</span>
+        {dashboard?.top_risks?.[0] ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#34d399' }}>
+              <span>Russian Urals (Reroute)</span>
+              <span>Rank 1</span>
+            </div>
+            <div style={{ fontSize: 10, color: '#cbd5e1' }}>
+              Volume: 0.3 mbpd | compatibility: 98%
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: '#475569', textAlign: 'center', padding: '5px 0' }}>
+            Contracts healthy.
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Detailed Procurement Optimizer Card
+  function renderDetailedProcurementCard() {
+    return (
+      <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Settings size={16} color="#10b981" />
+          <span className="section-title" style={{ fontSize: 11 }}>Alternative Procurement Optimization</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {dashboard?.top_risks?.[0] ? (
+            <>
+              <div style={{
+                padding: 12,
+                background: 'rgba(16, 185, 129, 0.04)',
+                borderRadius: 8,
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>Reroute Option: Russian Urals (Baltic Route)</span>
+                  <span className="badge risk-bg-low risk-low" style={{ fontSize: 9 }}>Rank 1</span>
+                </div>
+                <p style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                  Optimal linear optimization solution. Diverts heavy crude tanker pool from Baltic terminals to India West Coast (Sikka/Vadinar).
+                </p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11, color: '#cbd5e1', marginTop: 6, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div>Allocated Volume: <strong>0.3 mbpd</strong></div>
+                  <div>Freight Discount: <strong style={{ color: '#34d399' }}>-$2.00/bbl</strong></div>
+                  <div>Transit Duration: <strong>11 days</strong></div>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button 
+                    onClick={() => handleProcurementAction(dashboard.top_risks[0].signal_id, "APPROVE")}
+                    disabled={decisionActionStatus[dashboard.top_risks[0].signal_id] === "APPROVE"}
+                    className="btn-primary" 
+                    style={{ flex: 1, padding: '6px 12px', fontSize: 11, background: '#10b981', boxShadow: 'none' }}
+                  >
+                    {decisionActionStatus[dashboard.top_risks[0].signal_id] === "APPROVE" ? <Check size={12} style={{ margin: '0 auto' }} /> : "Approve Cargo rerouting"}
+                  </button>
+                  <button 
+                    onClick={() => handleProcurementAction(dashboard.top_risks[0].signal_id, "REJECT")}
+                    className="btn-ghost" 
+                    style={{ padding: '6px 12px', fontSize: 11 }}
+                  >
+                    Reject allocation
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 2 */}
+              <div style={{
+                padding: 12,
+                background: 'rgba(15, 23, 42, 0.4)',
+                borderRadius: 8,
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>Reroute Option: Saudi KSA Direct (Yanbu Bypass)</span>
+                  <span className="badge risk-bg-moderate risk-moderate" style={{ fontSize: 8 }}>Rank 2</span>
+                </div>
+                <p style={{ fontSize: 11, color: '#94a3b8' }}>
+                  Reroutes East-West pipeline flow to bypass Bab-el-Mandeb. Volume: <strong>0.8 mbpd</strong>. Compatibility: 94%. Freight premium: +$1.20/bbl.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+              All active procurement pipelines operating within baseline contracts.
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Supplier Compliance / Metrics Card
+  function renderSupplierComplianceCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>OPTIMIZATION CRITERIA WEIGHTS</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#e2e8f0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>Grade Compatibility Match:</span>
+            <span style={{ color: '#10b981', fontWeight: 700 }}>98.2%</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>VLCC Tanker Pool Capacity:</span>
+            <span>14/15 Available</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+            <span>Sikka Port Congestion wait:</span>
+            <span style={{ color: '#ef4444' }}>1.4 Days</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // SPR Affection Card
+  function renderSPRAffectionCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Activity size={16} color="var(--color-amber)" />
+          <span className="section-title" style={{ fontSize: 11 }}>SPR Drawdown Optimization</span>
+        </div>
+
+        {dashboard?.top_risks?.[0] ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>DRAWDOWN RATE</div>
+                <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-amber)', marginTop: 2 }}>1.15 mbpd</div>
+              </div>
+              <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>REPLENISH BUDGET</div>
+                <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-blue-500)', marginTop: 2 }}>$3.26 Billion</div>
+              </div>
+            </div>
+            
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5, background: 'rgba(217, 119, 6, 0.04)', padding: 10, borderRadius: 6, borderLeft: '3px solid var(--color-amber)' }}>
+              <strong>Cabinet Directive Release:</strong> Padur cavern and Mangaluru cavern release configured for 34 days cover buffer.
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+            No active emergency reserve drawdowns active. Strategic coverage: <strong>64 Days Buffer</strong>.
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Refinery Impact Summary Card
+  function renderRefineryImpactSummaryCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>REFINERY RUN-RATE METRICS</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+            <span style={{ color: 'var(--color-text-primary)' }}>Sikka (Reliance):</span>
+            <span>100% capacity (Normal)</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+            <span style={{ color: 'var(--color-text-primary)' }}>Kochi Refineries (BPCL):</span>
+            <span style={{ color: 'var(--color-risk-critical)' }}>85% run rate (Restricted)</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: 'var(--color-text-primary)' }}>Mangalore (MRPL):</span>
+            <span>98% capacity (Normal)</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Caverns Status Card
+  function renderCavernsStatusCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>ISPRL STORAGE CAVERN METRICS</span>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 6 }}>
+          {/* Cavern 1 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
+              <span><strong>Padur Cavern</strong> (Karnataka)</span>
+              <span>72% Filled (10.8M barrels)</span>
+            </div>
+            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: '72%', height: '100%', background: 'linear-gradient(90deg, var(--color-amber), var(--color-orange))', borderRadius: 4 }} />
+            </div>
+          </div>
+
+          {/* Cavern 2 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
+              <span><strong>Mangaluru Cavern</strong> (Karnataka)</span>
+              <span>45% Filled (4.5M barrels)</span>
+            </div>
+            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: '45%', height: '100%', background: 'linear-gradient(90deg, var(--color-orange), var(--color-risk-critical))', borderRadius: 4 }} />
+            </div>
+          </div>
+
+          {/* Cavern 3 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
+              <span><strong>Visakhapatnam Cavern</strong> (Andhra Pradesh)</span>
+              <span>90% Filled (8.1M barrels)</span>
+            </div>
+            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ width: '90%', height: '100%', background: 'linear-gradient(90deg, var(--color-risk-low), #059669)', borderRadius: 4 }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Explainability Card
+  function renderExplainabilityCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <HelpCircle size={16} color="var(--color-blue-500)" />
+          <span className="section-title" style={{ fontSize: 11 }}>RAG Explainability & Policy Corpus</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
+          {replayData?.decision_trace?.[0] ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
+                <span>Fitted Risk Calibration:</span>
+                <span style={{ color: 'var(--color-risk-low)', fontWeight: 700 }}>95% Confidence</span>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 700 }}>RETRIEVED CABINET POLICY DIRECTIVES:</span>
+                <div style={{
+                  padding: 10,
+                  background: 'var(--color-bg-primary)',
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  fontSize: 10,
+                  color: '#2563eb',
+                  fontFamily: 'monospace',
+                  lineHeight: 1.4
+                }}>
+                  • mopng_spr_guideline_2026.txt (Section 4A: Drawdown Triggers)<br/>
+                  • us_ofac_sanctions_2026.txt (Section 12: Russian Cargo Exemptions)
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 700 }}>SIMILAR HISTORICAL CRISIS ANCHORS:</span>
+                <div style={{
+                  padding: 10,
+                  background: 'var(--color-bg-primary)',
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border)',
+                  fontSize: 11,
+                  color: 'var(--color-text-secondary)',
+                  lineHeight: 1.4
+                }}>
+                  • <strong>2019 Abqaiq Drone Strike</strong> (global impact: 5.7 mbpd shortfall, 15% price spike, Sikka compatibility similarity: 85%)
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+              RAG index idle. Submit a threat command signal to pull directives.
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Decision Replay timeline Card
+  function renderDecisionReplayCard() {
+    return (
+      <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Terminal size={16} color="var(--color-purple)" />
+          <span className="section-title" style={{ fontSize: 11 }}>Agent Execution Replay Timeline (LangGraph logs)</span>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
+          {replayData?.decision_trace?.map((step: any) => (
+            <div key={step.step_index} style={{
+              display: 'grid',
+              gridTemplateColumns: '40px 1fr',
+              gap: 12,
+              position: 'relative'
+            }}>
+              {step.step_index < replayData.decision_trace.length && (
+                <div style={{
+                  position: 'absolute',
+                  left: 20,
+                  top: 40,
+                  bottom: -20,
+                  width: 2,
+                  background: 'rgba(124, 58, 237, 0.15)'
+                }} />
+              )}
+              
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: 'rgba(124, 58, 237, 0.06)',
+                border: '1px solid rgba(124, 58, 237, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--color-purple)'
+              }}>
+                0{step.step_index}
+              </div>
+
+              <div style={{
+                padding: 12,
+                background: 'var(--color-bg-secondary)',
+                borderRadius: 10,
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>{step.agent_name}</h4>
+                  <span className="mono" style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>{step.duration_ms}ms</span>
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{step.reasoning}</p>
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(37, 99, 235, 0.03)',
+                  borderRadius: 6,
+                  borderLeft: '2px solid var(--color-blue-500)',
+                  fontSize: 10,
+                  color: 'var(--color-text-primary)',
+                  fontFamily: 'monospace'
+                }}>
+                  {step.output_summary}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Cabinet Taskforce Directives Card
+  function renderTaskforceDirectivesCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>CABINET CORRIDOR RISK DIRECTIVES</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#cbd5e1' }}>
+          <p>1. <strong>Diversion Protocols</strong>: Any corridor risk exceeding 50% Bayesian score triggers automatic LP alternative supplier optimization.</p>
+          <p>2. <strong>SPR Safeguards</strong>: Drawdowns are authorized solely when refinery capacity run rates are projected to fall below 90%.</p>
+          <p>3. <strong>Replenishment Cap</strong>: Cavern refilling budget allocations are set up when daily Brent prices drop under $83.70/bbl.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 2. RISK INTELLIGENCE VIEW
+  function renderRiskIntelligence() {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {renderDetailedRiskFeedCard()}
+          {renderBriefingCard(true)}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {renderBayesianProbCard()}
+          {renderAIAgentConsoleCard()}
+        </div>
+      </div>
+    )
+  }
+
+  // ────────────── MAIN VIEW DISPATCHER ──────────────
+  const renderActiveView = () => {
+    const active = view || currentHash
+    switch (active) {
+      case 'risk-intelligence':
+      case '#risk-intelligence':
+        return renderRiskIntelligence()
+      case 'geospatial-map':
+      case '#geospatial-map':
+        return renderGeospatialMap()
+      case 'scenario-simulator':
+      case '#scenario-simulator':
+        return renderScenarioSimulator()
+      case 'procurement-orchestrator':
+      case '#procurement-orchestrator':
+        return renderProcurementOptimizer()
+      case 'strategic-reserves':
+      case '#strategic-reserves':
+        return renderStrategicReserve()
+      case 'supply-chain-digital-twin':
+      case '#supply-chain-digital-twin':
+        return renderSupplyChainDigitalTwin()
+      case 'reports-insights':
+      case '#reports-insights':
+        return renderReportsInsights()
+      case 'alerts-signal-center':
+      case '#alerts-signal-center':
+        return renderAlertsSignalCenter()
+      case 'settings':
+      case '#settings':
+        return renderSettingsView()
+      default:
+        return renderOverview()
+    }
+  }
+
+  return (
+    <div style={{ padding: '4px 12px', minHeight: 'calc(100vh - var(--topbar-height) - 40px)' }}>
+      {renderActiveView()}
+      
+      {/* Real-time Toast Notifications */}
+      {toastAlerts.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: 20,
+          right: 20,
+          zIndex: 5000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          pointerEvents: 'none'
+        }}>
+          {toastAlerts.map((alert, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(13, 20, 33, 0.95)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 8,
+                boxShadow: '0 4px 20px rgba(239, 68, 68, 0.2)',
+                color: '#fff',
+                fontSize: 11,
+                minWidth: 280,
+                maxWidth: 360,
+                backdropFilter: 'blur(8px)',
+                pointerEvents: 'auto'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontWeight: 800, color: '#ef4444' }}>⚠️ LIVE SIGNAL ALERT</span>
+                <span style={{ fontSize: 9, color: '#94a3b8' }}>{alert.source || "STREAM"}</span>
+              </div>
+              <div>{alert.description || alert.title || alert.message || "Threat corridor anomaly flagged."}</div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

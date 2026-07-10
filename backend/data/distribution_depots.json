@@ -1,0 +1,42 @@
+[
+  {
+    "id": "depot_ambala",
+    "name": "Ambala Pipeline Depot",
+    "state": "Haryana",
+    "capacity_million_litres": 150,
+    "connected_refineries": ["ref_panipat"],
+    "coordinates": { "lat": 30.37, "lng": 76.77 }
+  },
+  {
+    "id": "depot_mathura",
+    "name": "Mathura Depot",
+    "state": "Uttar Pradesh",
+    "capacity_million_litres": 220,
+    "connected_refineries": ["ref_panipat"],
+    "coordinates": { "lat": 27.49, "lng": 77.67 }
+  },
+  {
+    "id": "depot_loni",
+    "name": "Loni Terminal",
+    "state": "Maharashtra",
+    "capacity_million_litres": 180,
+    "connected_refineries": ["ref_kochi", "ref_mangalore"],
+    "coordinates": { "lat": 18.98, "lng": 73.01 }
+  },
+  {
+    "id": "depot_patna",
+    "name": "Patna Pipeline Depot",
+    "state": "Bihar",
+    "capacity_million_litres": 120,
+    "connected_refineries": ["ref_barauni"],
+    "coordinates": { "lat": 25.59, "lng": 85.13 }
+  },
+  {
+    "id": "depot_sikka",
+    "name": "Sikka Terminal",
+    "state": "Gujarat",
+    "capacity_million_litres": 500,
+    "connected_refineries": ["ref_jamnagar", "ref_vadinar"],
+    "coordinates": { "lat": 22.43, "lng": 69.83 }
+  }
+]

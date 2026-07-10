@@ -1,7 +1,8 @@
 """
 Knowledge Graph Service – builds and queries India's crude oil supply chain
 as a NetworkX graph. Nodes include suppliers, oil fields, terminals,
-shipping routes, chokepoints, ports, refineries, and SPR facilities.
+shipping routes, chokepoints, ports, refineries, depots, demand zones,
+spr facilities, and tanker pools.
 """
 import json
 import networkx as nx
@@ -26,6 +27,11 @@ def build_knowledge_graph() -> nx.DiGraph:
     chokepoints = load_json("chokepoints.json")
     oil_fields = load_json("oil_fields.json")
     routes = load_json("routes.json")
+    
+    # Load new entity datasets (Audit fix: wellhead to distribution + tanker + port congestion)
+    depots = load_json("distribution_depots.json")
+    demand_zones = load_json("demand_zones.json")
+    tankers = load_json("tanker_pools.json")
 
     # Add supplier nodes
     for s in suppliers:
@@ -45,32 +51,76 @@ def build_knowledge_graph() -> nx.DiGraph:
                    risk_score=c["risk_score"],
                    lat=c["lat"], lng=c["lng"])
 
-    # Add port nodes
+    # Add port nodes (Includes congestion attributes)
     for p in ports:
+        congestion_level = "LOW"
+        wait_days = 1.0
+        occupancy = 35.0
+        if p["congestion_level"] > 50:
+            congestion_level = "HIGH"
+            wait_days = 3.0
+            occupancy = 75.0
+        elif p["congestion_level"] > 30:
+            congestion_level = "MODERATE"
+            wait_days = 1.5
+            occupancy = 50.0
+            
         G.add_node(p["id"], label=p["name"], type="import_port",
-                   congestion=p["congestion_level"],
+                   annual_capacity_mt=p["annual_capacity_mt"],
+                   current_throughput_mt=p["current_throughput_mt"],
+                   congestion_level=congestion_level,
+                   avg_wait_days=wait_days,
+                   berth_occupancy_pct=occupancy,
+                   max_vessel_dwt=p["max_vessel_dwt"],
                    lat=p["coordinates"]["lat"], lng=p["coordinates"]["lng"])
 
     # Add refinery nodes
     for r in refineries:
         G.add_node(r["id"], label=r["name"], type="refinery",
-                   capacity=r["capacity_mbpd"], utilization=r["current_utilization_pct"],
+                   capacity_mbpd=r["capacity_mbpd"] / 1000.0,  # Convert kbpd to mbpd
+                   utilization=r["current_utilization_pct"],
+                   min_economic_run_pct=70.0,  # Default threshold
+                   processable_grades=r["crude_grades_compatible"],
                    lat=r["coordinates"]["lat"], lng=r["coordinates"]["lng"])
 
     # Add route nodes
     for route in routes:
         G.add_node(route["id"], label=route["name"], type="shipping_route",
-                   risk_score=route["risk_score"])
+                   risk_score=route["risk_score"],
+                   transit_time_days=route.get("transit_days", 10),
+                   waypoints=route.get("waypoints", []))
 
     # Add SPR facilities
     spr_facilities = [
-        {"id": "spr_vizag", "name": "Visakhapatnam SPR", "lat": 17.68, "lng": 83.21},
-        {"id": "spr_mangaluru", "name": "Mangaluru SPR", "lat": 12.91, "lng": 74.86},
-        {"id": "spr_padur", "name": "Padur SPR", "lat": 12.97, "lng": 74.78}
+        {"id": "spr_vizag", "name": "Visakhapatnam SPR", "capacity": 9.77, "lat": 17.68, "lng": 83.21},
+        {"id": "spr_mangaluru", "name": "Mangaluru SPR", "capacity": 11.0, "lat": 12.91, "lng": 74.86},
+        {"id": "spr_padur", "name": "Padur SPR", "capacity": 18.37, "lat": 12.97, "lng": 74.78}
     ]
     for spr in spr_facilities:
         G.add_node(spr["id"], label=spr["name"], type="spr_facility",
+                   capacity_million_bbl=spr["capacity"],
                    lat=spr["lat"], lng=spr["lng"])
+
+    # Add new depot nodes
+    for d in depots:
+        G.add_node(d["id"], label=d["name"], type="distribution_depot",
+                   capacity_million_litres=d["capacity_million_litres"],
+                   lat=d["coordinates"]["lat"], lng=d["coordinates"]["lng"])
+
+    # Add new demand zone nodes
+    for z in demand_zones:
+        G.add_node(z["id"], label=z["name"], type="demand_zone",
+                   daily_consumption_mbpd=z["daily_consumption_mbpd"],
+                   population_millions=z["population_millions"])
+
+    # Add new tanker pool nodes
+    for t in tankers:
+        G.add_node(t["id"], label=t["region"] + " Tanker Pool", type="tanker_pool",
+                   available_vlcc=t["available_vlcc"],
+                   available_suezmax=t["available_suezmax"],
+                   available_aframax=t["available_aframax"],
+                   avg_charter_rate_usd_day=t["avg_charter_rate_usd_day"],
+                   estimated_positioning_days=t["estimated_positioning_days"])
 
     # ─── Edges (relationships) ────────────────────────────────────────────────
 
@@ -143,6 +193,27 @@ def build_knowledge_graph() -> nx.DiGraph:
         for cp_id in route["chokepoints"]:
             G.add_edge(cp_id, route["id"], relationship="Threatens", weight=0.9)
 
+    # New Downstream relationships (Refinery → distributes_to → Depot)
+    for d in depots:
+        for ref_id in d["connected_refineries"]:
+            G.add_edge(ref_id, d["id"], relationship="Distributes To", weight=1.0)
+
+    # Depot → serves → Demand Zone
+    for z in demand_zones:
+        for depot_id in z["depots"]:
+            G.add_edge(depot_id, z["id"], relationship="Serves", weight=1.0)
+
+    # Tanker Pool → serves → Route
+    pool_route_map = {
+        "pool_persian_gulf": ["route_hormuz_india"],
+        "pool_west_africa": ["route_west_africa_india"],
+        "pool_us_gulf": ["route_usa_india"],
+        "pool_baltic_blacksea": ["route_russia_india_direct", "route_redsea_india"]
+    }
+    for pool_id, route_list in pool_route_map.items():
+        for route_id in route_list:
+            G.add_edge(pool_id, route_id, relationship="Serves Route", weight=1.0)
+
     return G
 
 
@@ -159,7 +230,7 @@ def graph_to_json(G: nx.DiGraph) -> Dict:
         "distribution_depot": "#84cc16",
         "demand_zone": "#ec4899",
         "spr_facility": "#f97316",
-        "crude_grade": "#a78bfa"
+        "tanker_pool": "#a78bfa"
     }
 
     nodes = []

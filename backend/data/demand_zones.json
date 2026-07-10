@@ -1,0 +1,42 @@
+[
+  {
+    "id": "zone_north",
+    "name": "Northern Demand Zone",
+    "region": "North",
+    "daily_consumption_mbpd": 1.25,
+    "population_millions": 380,
+    "depots": ["depot_ambala", "depot_mathura"]
+  },
+  {
+    "id": "zone_west",
+    "name": "Western Demand Zone",
+    "region": "West",
+    "daily_consumption_mbpd": 1.45,
+    "population_millions": 310,
+    "depots": ["depot_sikka"]
+  },
+  {
+    "id": "zone_south",
+    "name": "Southern Demand Zone",
+    "region": "South",
+    "daily_consumption_mbpd": 1.05,
+    "population_millions": 270,
+    "depots": ["depot_loni"]
+  },
+  {
+    "id": "zone_east",
+    "name": "Eastern Demand Zone",
+    "region": "East",
+    "daily_consumption_mbpd": 0.65,
+    "population_millions": 290,
+    "depots": ["depot_patna"]
+  },
+  {
+    "id": "zone_northeast",
+    "name": "North-Eastern Demand Zone",
+    "region": "North-East",
+    "daily_consumption_mbpd": 0.15,
+    "population_millions": 50,
+    "depots": []
+  }
+]

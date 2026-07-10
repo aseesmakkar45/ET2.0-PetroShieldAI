@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker } from 'react-leaflet'
+import React, { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { MapData } from '@/types'
@@ -30,18 +30,28 @@ const vesselIcon = new L.DivIcon({
 
 const chokepointIcon = createIcon('#ef4444')
 const portIcon = createIcon('#10b981')
-const refineryIcon = createIcon('#f59e0b')
+const refineryIcon = createIcon('#f97316')
+const sprIcon = createIcon('#eab308')
 
 interface Props {
   mapData?: MapData
 }
 
 export default function GlobalMap({ mapData }: Props) {
+  const [mapKey, setMapKey] = useState<string>("")
+  useEffect(() => {
+    setMapKey("map-" + Math.random().toString(36).substr(2, 9))
+  }, [])
+
   if (!mapData) return null
+  if (!mapKey) {
+    return <div style={{ width: '100%', height: '100%', background: '#060d1a' }} />
+  }
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#080c14' }}>
+    <div style={{ width: '100%', height: '100%', background: '#f8fafc' }}>
       <MapContainer
+        key={mapKey}
         center={[20.5937, 78.9629]} // Centered on India
         zoom={4}
         style={{ width: '100%', height: '100%', zIndex: 1 }}
@@ -49,18 +59,33 @@ export default function GlobalMap({ mapData }: Props) {
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
 
         {/* Routes */}
-        {mapData.routes?.map(route => (
+        {mapData.routes?.map(route => {
+          const isDisrupted = route.risk_score > 50 || (route as any).is_disrupted;
+          return (
+            <Polyline
+              key={route.id}
+              positions={route.waypoints.map(w => [w.lat, w.lng])}
+              color={isDisrupted ? '#ef4444' : '#3b82f6'}
+              weight={isDisrupted ? 3 : 2}
+              opacity={isDisrupted ? 0.8 : 0.4}
+              dashArray={isDisrupted ? "4, 6" : "5, 10"}
+            />
+          );
+        })}
+
+        {/* Recommended routes (Green Reroutes) */}
+        {(mapData as any).recommended_routes?.map((pathCoords: number[][], idx: number) => (
           <Polyline
-            key={route.id}
-            positions={route.waypoints.map(w => [w.lat, w.lng])}
-            color={route.risk_score > 70 ? '#ef4444' : '#3b82f6'}
-            weight={2}
-            opacity={0.4}
-            dashArray="5, 10"
+            key={`rec_route_${idx}`}
+            positions={pathCoords}
+            color="#10b981"
+            weight={3}
+            opacity={0.9}
+            dashArray="1, 4"
           />
         ))}
 
@@ -71,10 +96,10 @@ export default function GlobalMap({ mapData }: Props) {
             position={[vessel.current_position.lat, vessel.current_position.lng]}
             icon={vesselIcon}
           >
-            <Popup className="dark-popup">
+            <Popup>
               <div style={{ padding: 4 }}>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#f1f5f9' }}>{vessel.name}</h3>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#0f172a' }}>{vessel.name}</h3>
+                <div style={{ fontSize: 11, color: '#475569' }}>
                   Type: {vessel.vessel_type}<br/>
                   Speed: {vessel.speed_knots} kn<br/>
                   Dest: {vessel.destination_port}
@@ -87,10 +112,10 @@ export default function GlobalMap({ mapData }: Props) {
         {/* Chokepoints */}
         {mapData.chokepoints?.map(cp => (
           <Marker key={cp.id} position={[cp.lat, cp.lng]} icon={chokepointIcon}>
-            <Popup className="dark-popup">
+            <Popup>
               <div style={{ padding: 4 }}>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#ef4444' }}>{cp.name}</h3>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#dc2626' }}>{cp.name}</h3>
+                <div style={{ fontSize: 11, color: '#475569' }}>
                   Risk Score: {cp.risk_score}/100<br/>
                   Flow: {cp.daily_flow_mbd} MBD
                 </div>
@@ -102,10 +127,44 @@ export default function GlobalMap({ mapData }: Props) {
         {/* Ports (India) */}
         {mapData.ports?.map(port => (
           <Marker key={port.id} position={[port.coordinates.lat, port.coordinates.lng]} icon={portIcon}>
-            <Popup className="dark-popup">
+            <Popup>
               <div style={{ padding: 4 }}>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#10b981' }}>{port.name}</h3>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>Capacity: {port.annual_capacity_mt} MT/yr</div>
+                <div style={{ fontSize: 11, color: '#475569' }}>Capacity: {port.annual_capacity_mt} MT/yr</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {/* Refineries */}
+        {mapData.refineries?.map(refinery => {
+          const coords = refinery.coordinates;
+          if (!coords) return null;
+          return (
+            <Marker key={refinery.id} position={[coords.lat, coords.lng]} icon={refineryIcon}>
+              <Popup>
+                <div style={{ padding: 4 }}>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#ea580c' }}>{refinery.name}</h3>
+                  <div style={{ fontSize: 11, color: '#475569' }}>
+                    Capacity: {refinery.capacity_mbpd} mbpd<br/>
+                    Operator: {refinery.operator}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* SPR Facilities */}
+        {mapData.spr_facilities?.map(spr => (
+          <Marker key={spr.id} position={[spr.lat, spr.lng]} icon={sprIcon}>
+            <Popup>
+              <div style={{ padding: 4 }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#d97706' }}>{spr.name}</h3>
+                <div style={{ fontSize: 11, color: '#475569' }}>
+                  Capacity: {spr.capacity_mb} Million Barrels<br/>
+                  Current Fill: {spr.fill_pct}%
+                </div>
               </div>
             </Popup>
           </Marker>

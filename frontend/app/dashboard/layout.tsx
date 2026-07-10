@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           flexDirection: 'column',
           overflow: 'hidden',
         }}>
-          <main style={{ flex: 1, overflow: 'hidden' }}>
+          <main id="main-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
             {children}
           </main>
         </div>

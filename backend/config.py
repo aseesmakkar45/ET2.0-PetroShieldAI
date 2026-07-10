@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
     WS_HOST: str = "localhost"
     WS_PORT: int = 8000
+    AISSTREAM_API_KEY: str = "e4786c9a683aa6cb7d494388cb21a2c96923d092"
 
     class Config:
         env_file = ".env"
