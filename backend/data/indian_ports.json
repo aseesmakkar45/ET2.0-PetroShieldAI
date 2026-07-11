@@ -1,0 +1,56 @@
+[
+  {
+    "id": "port_vadinar",
+    "name": "Vadinar Port",
+    "coordinates": { "lat": 22.46, "lng": 69.77 },
+    "connected_refinery": "ref_vadinar",
+    "receiving_capacity_mtpa": 100,
+    "current_queue_vessels": 2,
+    "status": "OPERATIONAL"
+  },
+  {
+    "id": "port_sikka",
+    "name": "Sikka Port (Jamnagar)",
+    "coordinates": { "lat": 22.43, "lng": 69.82 },
+    "connected_refinery": "ref_jamnagar",
+    "receiving_capacity_mtpa": 150,
+    "current_queue_vessels": 4,
+    "status": "OPERATIONAL"
+  },
+  {
+    "id": "port_kochi",
+    "name": "Kochi Port",
+    "coordinates": { "lat": 9.93, "lng": 76.27 },
+    "connected_refinery": "ref_kochi",
+    "receiving_capacity_mtpa": 22,
+    "current_queue_vessels": 1,
+    "status": "OPERATIONAL"
+  },
+  {
+    "id": "port_mumbai",
+    "name": "Mumbai Port",
+    "coordinates": { "lat": 18.94, "lng": 72.84 },
+    "connected_refinery": "ref_kochi",
+    "receiving_capacity_mtpa": 62,
+    "current_queue_vessels": 3,
+    "status": "OPERATIONAL"
+  },
+  {
+    "id": "port_paradip",
+    "name": "Paradip Port",
+    "coordinates": { "lat": 20.26, "lng": 86.68 },
+    "connected_refinery": "ref_panipat",
+    "receiving_capacity_mtpa": 45,
+    "current_queue_vessels": 2,
+    "status": "OPERATIONAL"
+  },
+  {
+    "id": "port_vizag",
+    "name": "Visakhapatnam Port",
+    "coordinates": { "lat": 17.68, "lng": 83.21 },
+    "connected_refinery": "ref_vishaka",
+    "receiving_capacity_mtpa": 30,
+    "current_queue_vessels": 1,
+    "status": "OPERATIONAL"
+  }
+]

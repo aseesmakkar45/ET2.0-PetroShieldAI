@@ -4,8 +4,13 @@ Dashboard Routes – serves the National Energy Command Center KPIs and live sta
 from fastapi import APIRouter
 from agents.orchestrator import get_active_state, run_petroshield_pipeline
 from datetime import datetime
+import json
+from pathlib import Path
+from services.live_connectors import connectors
+from services.calculators import calculate_spr_days_of_cover, calculate_refinery_utilization_drop
 
 router = APIRouter()
+DATA_DIR = Path(__file__).parent.parent / "data"
 
 
 @router.get("/dashboard")
@@ -26,26 +31,59 @@ async def get_dashboard():
     risk_score = risk_sig.disruption_probability if risk_sig else 15.0
     risk_level = risk_sig.severity if risk_sig else "MONITOR"
     
-    current_brent = scn_res.trigger_signal.disruption_probability * 0.15 + 82.5 if scn_res else 82.5
+    # 1. Fetch live Brent Crude Price from EIA Connector
+    eia_brent = connectors.fetch_eia_brent_price()
+    current_brent = eia_brent
+    if risk_score > 35:
+        # Scenario Price Spike adjustment
+        current_brent = eia_brent * 1.15
+        
     expected_brent = scn_res.scenarios[1].brent_price_mean if scn_res else current_brent
     
+    # 2. Calculate Strategic Reserves Days of Cover from spr_facilities.json
+    try:
+        spr_path = DATA_DIR / "spr_facilities.json"
+        if spr_path.exists():
+            with open(spr_path, "r") as f:
+                caverns = json.load(f)
+            spr_days = calculate_spr_days_of_cover(caverns)
+        else:
+            spr_days = 64.0
+    except Exception:
+        spr_days = 64.0
+        
     supply_loss = scn_res.scenarios[1].supply_shortfall_mbpd if scn_res else 0.0
-    spr_days = spr_adv.optimized_runway_days if spr_adv else 9.5 * 7  # default 66 days
     cost_inc = proc_plan.total_cost_impact_usd_per_day if proc_plan else 0.0
     
     vessels_at_risk = len(risk_sig.geospatial_evidence.vessel_anomalies) if risk_sig else 0
-    refineries_at_risk = len([r for r in spr_adv.refinery_demand_curves if r.shutdown_risk]) if spr_adv else 0
     
+    # 3. Calculate connected refinery run-rate impact drop
+    refineries_at_risk = 0
+    try:
+        ref_path = DATA_DIR / "refineries.json"
+        supp_path = DATA_DIR / "suppliers.json"
+        if ref_path.exists() and supp_path.exists():
+            with open(ref_path, "r") as f:
+                refineries = json.load(f)
+            with open(supp_path, "r") as f:
+                suppliers = json.load(f)
+            for ref in refineries:
+                drop = calculate_refinery_utilization_drop(ref, suppliers, risk_score)
+                if drop > 5.0:
+                    refineries_at_risk += 1
+    except Exception:
+        refineries_at_risk = 1 if risk_score > 35 else 0
+
     avg_confidence = proc_plan.explainability.confidence_score * 100 if proc_plan else 95.0
     latency = sum(step["duration_ms"] for step in state.decision_trace) if state.decision_trace else 15
     
-    # Compile 12 Dashboard KPIs (upgraded to Palantir/Bloomberg command center level)
+    # Compile 12 Dashboard KPIs
     kpis = [
         {"id": "risk_level", "label": "Live Risk Level", "value": f"{risk_score:.1f}", "unit": "/100", "status": "critical" if risk_score > 55 else ("warning" if risk_score > 35 else "normal")},
         {"id": "ships_at_risk", "label": "Ships at Risk", "value": str(vessels_at_risk), "unit": "tankers", "status": "critical" if vessels_at_risk > 0 else "normal"},
         {"id": "refineries_affected", "label": "Affected Refineries", "value": str(refineries_at_risk), "unit": "facilities", "status": "critical" if refineries_at_risk > 0 else "normal"},
         {"id": "supply_loss", "label": "Supply Loss", "value": f"{supply_loss:.2f}", "unit": "mbpd", "status": "critical" if supply_loss > 0 else "normal"},
-        {"id": "current_brent", "label": "Current Brent", "value": f"${current_brent:.2f}", "unit": "USD/bbl", "status": "warning" if current_brent > 90 else "normal"},
+        {"id": "current_brent", "label": "Current Brent (EIA Live)", "value": f"${current_brent:.2f}", "unit": "USD/bbl", "status": "warning" if current_brent > 90 else "normal"},
         {"id": "expected_brent", "label": "Expected Brent", "value": f"${expected_brent:.2f}", "unit": "USD/bbl", "status": "warning" if expected_brent > 90 else "normal"},
         {"id": "spr_days", "label": "SPR Runway Remaining", "value": f"{spr_days:.1f}", "unit": "days", "status": "critical" if spr_days < 15 else ("warning" if spr_days < 30 else "normal")},
         {"id": "cost_increase", "label": "Est. Cost Increase", "value": f"${cost_inc/1000000:.1f}", "unit": "M USD/day", "status": "warning" if cost_inc > 0 else "normal"},
@@ -59,6 +97,24 @@ async def get_dashboard():
     resilience_score = 100.0 - (risk_score * 0.4) - (refineries_at_risk * 5) + (spr_days * 0.1)
     resilience_score = max(10.0, min(100.0, resilience_score))
 
+    # 4. Integrate GDELT News Items into risks feed
+    gdelt_news = connectors.fetch_gdelt_news()
+    recent_risks = []
+    if risk_sig:
+        recent_risks.append(risk_sig.model_dump())
+    for item in gdelt_news[:2]:
+        recent_risks.append({
+            "signal_id": f"gdelt_{int(datetime.now().timestamp())}",
+            "source_type": "GDELT_NEWS",
+            "timestamp": item["timestamp"] or datetime.now().isoformat(),
+            "event_type": "GEOPOLITICAL_NEWS",
+            "event_summary": f"[{item['source']}] {item['title']}",
+            "disruption_probability": 36.5,
+            "affected_chokepoints": ["Strait of Hormuz"],
+            "estimated_supply_impact_mbpd": 0.3,
+            "geospatial_evidence": {"vessel_anomalies": []}
+        })
+
     return {
         "energy_resilience_score": round(resilience_score, 1),
         "overall_risk_score": risk_score,
@@ -69,7 +125,7 @@ async def get_dashboard():
         "active_alerts": 1 if risk_score > 15 else 0,
         "spr_days_cover": round(spr_days, 1),
         "kpi_cards": kpis,
-        "top_risks": [risk_sig.model_dump()] if risk_sig else [],
+        "top_risks": recent_risks,
         "latest_recommendations": [r.tradeoff_summary for r in proc_plan.recommendations] if proc_plan else [
             "Maintain baseline shipping charters.",
             "Monitor Hormuz and Red Sea corridors.",

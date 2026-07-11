@@ -14,15 +14,17 @@ const createIcon = (color: string) => new L.DivIcon({
   iconAnchor: [6, 6]
 })
 
-const vesselIcon = new L.DivIcon({
+const createVesselIcon = (color: string, heading: number = 0) => new L.DivIcon({
   className: 'vessel-icon',
   html: `<div style="
     width: 0; 
     height: 0; 
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    border-bottom: 14px solid #3b82f6;
-    filter: drop-shadow(0 0 4px rgba(59,130,246,0.8));
+    border-bottom: 14px solid ${color};
+    filter: drop-shadow(0 0 4px ${color});
+    transform: rotate(${heading}deg);
+    transition: transform 0.3s ease;
   "></div>`,
   iconSize: [12, 14],
   iconAnchor: [6, 7]
@@ -90,24 +92,45 @@ export default function GlobalMap({ mapData }: Props) {
         ))}
 
         {/* Vessels */}
-        {mapData.vessels?.map(vessel => (
-          <Marker
-            key={vessel.mmsi}
-            position={[vessel.current_position.lat, vessel.current_position.lng]}
-            icon={vesselIcon}
-          >
-            <Popup>
-              <div style={{ padding: 4 }}>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: 13, color: '#0f172a' }}>{vessel.name}</h3>
-                <div style={{ fontSize: 11, color: '#475569' }}>
-                  Type: {vessel.vessel_type}<br/>
-                  Speed: {vessel.speed_knots} kn<br/>
-                  Dest: {vessel.destination_port}
+        {mapData.vessels?.map(vessel => {
+          const isLive = vessel.data_source === 'LIVE';
+          const iconColor = isLive ? '#10b981' : '#a855f7';
+          const heading = (vessel as any).heading ?? 0;
+          const currentIcon = createVesselIcon(iconColor, heading);
+          
+          return (
+            <Marker
+              key={vessel.mmsi}
+              position={[vessel.current_position.lat, vessel.current_position.lng]}
+              icon={currentIcon}
+            >
+              <Popup>
+                <div style={{ padding: 6, minWidth: 160 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{vessel.name}</h3>
+                    <span style={{ 
+                      fontSize: 8.5, 
+                      fontWeight: 700, 
+                      padding: '2px 6px', 
+                      borderRadius: 4, 
+                      color: '#ffffff', 
+                      background: isLive ? '#10b981' : '#a855f7' 
+                    }}>
+                      {isLive ? 'LIVE' : 'SIMULATED'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#475569', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div><strong>Type:</strong> {vessel.vessel_type}</div>
+                    <div><strong>MMSI:</strong> {vessel.mmsi}</div>
+                    <div><strong>Speed:</strong> {vessel.speed_knots} kn</div>
+                    {vessel.heading && <div><strong>Heading:</strong> {vessel.heading}°</div>}
+                    <div><strong>Destination:</strong> {vessel.destination_port}</div>
+                  </div>
                 </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* Chokepoints */}
         {mapData.chokepoints?.map(cp => (

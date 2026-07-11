@@ -767,7 +767,7 @@ export default function CommandCenter({ view }: { view?: string }) {
         </div>
 
         {/* Map */}
-        {renderMapCard('100%')}
+        {renderMapCard(650)}
       </div>
     )
   }
@@ -1161,7 +1161,7 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   // AI Agent System Status Console
   function renderAIAgentConsoleCard() {
-    const hasActiveThreat = dashboard?.top_risks?.length > 0
+    const hasActiveThreat = (dashboard?.top_risks?.length ?? 0) > 0
     const brent = dashboard?.brent_price_usd ?? 82.49
     const overallRisk = dashboard?.overall_risk_score ?? 59
 

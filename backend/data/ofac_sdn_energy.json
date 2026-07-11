@@ -1,0 +1,26 @@
+[
+  {
+    "name": "IRANIAN TRANSPORTATION & SHIPPING CO.",
+    "program": "IRAN",
+    "type": "Entity",
+    "remarks": "Energy sector vessel logistics and petroleum export"
+  },
+  {
+    "name": "BAB AL MANDAB MARINE CORP",
+    "program": "YEMEN / HOUTHI-SUPPORT",
+    "type": "Vessel",
+    "remarks": "Sanctioned crude oil transporter operating under illicit flags"
+  },
+  {
+    "name": "SINPA OIL LOGISTICS",
+    "program": "IRAN-EO13846",
+    "type": "Entity",
+    "remarks": "Petroleum product ship-to-ship transfer networks"
+  },
+  {
+    "name": "KASPIAN OIL SHIPPOOL INC",
+    "program": "RUSSIA-EO14024",
+    "type": "Vessel",
+    "remarks": "Shadow fleet tanker transport"
+  }
+]

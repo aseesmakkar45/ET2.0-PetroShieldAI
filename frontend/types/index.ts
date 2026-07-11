@@ -233,6 +233,7 @@ export interface DashboardSummary {
   kpi_cards: KPICard[]
   top_risks: RiskSignal[]
   latest_recommendations: string[]
+  executive_briefing?: string
   timestamp: string
 }
 

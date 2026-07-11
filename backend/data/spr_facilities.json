@@ -1,0 +1,29 @@
+[
+  {
+    "id": "spr_visakhapatnam",
+    "name": "Visakhapatnam SPR Cavern",
+    "location": "Visakhapatnam, Andhra Pradesh",
+    "coordinates": { "lat": 17.68, "lng": 83.21 },
+    "capacity_barrels": 9770000,
+    "assumed_fill_pct": 90,
+    "status_note": "Assumed 90% full. Stated hackathon assumption; exact cavern fill rates are classified."
+  },
+  {
+    "id": "spr_mangalore",
+    "name": "Mangaluru SPR Cavern",
+    "location": "Mangaluru, Karnataka",
+    "coordinates": { "lat": 12.91, "lng": 74.86 },
+    "capacity_barrels": 11000000,
+    "assumed_fill_pct": 90,
+    "status_note": "Assumed 90% full. Stated hackathon assumption; exact cavern fill rates are classified."
+  },
+  {
+    "id": "spr_padur",
+    "name": "Padur SPR Cavern",
+    "location": "Padur, Karnataka",
+    "coordinates": { "lat": 13.22, "lng": 74.79 },
+    "capacity_barrels": 18300000,
+    "assumed_fill_pct": 90,
+    "status_note": "Assumed 90% full. Stated hackathon assumption; exact cavern fill rates are classified."
+  }
+]

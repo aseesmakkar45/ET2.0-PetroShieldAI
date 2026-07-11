@@ -2,7 +2,7 @@
 Map Routes – serves live vessel positions from AISstream.io and static overlay data.
 """
 from fastapi import APIRouter
-from services.real_ais import get_real_vessels, get_vessel_count
+from simulation.ais_generator import generate_vessels
 from agents.orchestrator import get_active_state
 import json
 from pathlib import Path
@@ -26,8 +26,8 @@ async def get_map_data():
     with open(DATA_DIR / "oil_fields.json") as f:
         oil_fields = json.load(f)
 
-    # Live vessels from AISstream.io WebSocket — no synthetic data
-    vessels = get_real_vessels()
+    # Combined live AIS stream and simulated tankers
+    vessels = generate_vessels()
 
     # Adjust route color status based on active orchestrator risk signal
     if state and state.risk_signal:
