@@ -5,6 +5,7 @@ tanker movements along active shipping routes and combines them with live AIS da
 import random
 import time
 import json
+import math
 from pathlib import Path
 from typing import List, Dict, Any
 

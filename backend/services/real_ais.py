@@ -35,15 +35,22 @@ async def connect_ais_stream(api_key: str):
     global real_vessel_cache
     uri = "wss://stream.aisstream.io/v0/stream"
 
-    # Bounding box: lat [0, 30], lng [30, 90]
-    # Covers: Red Sea, Bab-el-Mandeb, Gulf of Aden, Persian Gulf,
-    #         Strait of Hormuz, Arabian Sea, India's West Coast
-    bounding_box = [[[0.0, 30.0], [30.0, 90.0]]]
+    # Multi-box coverage for full Indian Ocean tanker corridor:
+    # Box 1: Persian Gulf, Strait of Hormuz, Gulf of Oman (lat 20-30, lng 50-65)
+    # Box 2: Arabian Sea, India West Coast  (lat 8-25, lng 60-80)
+    # Box 3: Red Sea, Bab-el-Mandeb         (lat 10-30, lng 32-50)
+    # Box 4: Cape of Good Hope route        (lat -40-0, lng 10-50)
+    bounding_box = [
+        [[20.0, 50.0], [30.0, 65.0]],
+        [[8.0,  60.0], [25.0, 80.0]],
+        [[10.0, 32.0], [30.0, 50.0]],
+        [[-40.0, 10.0], [0.0, 50.0]]
+    ]
 
     subscription_msg = {
         "APIKey": api_key,
         "BoundingBoxes": bounding_box,
-        "FilterMessageTypes": ["PositionReport", "ShipStaticData"]
+        "FilterMessageTypes": ["PositionReport", "ShipStaticData", "StandardClassBPositionReport"]
     }
 
     print(f"[AIS] Connecting to aisstream.io WebSocket...")
@@ -69,7 +76,7 @@ async def connect_ais_stream(api_key: str):
                             "mmsi": mmsi,
                             "name": meta.get("ShipName", "").strip() or f"VESSEL_{mmsi[-4:]}",
                             "vessel_type": "Tanker",
-                            "flag": "",
+                            "flag": meta.get("flag", ""),
                             "dwt": 0,
                             "current_position": {"lat": 0.0, "lng": 0.0},
                             "speed_knots": 0.0,
@@ -77,11 +84,11 @@ async def connect_ais_stream(api_key: str):
                             "origin_port": "",
                             "destination_port": "",
                             "cargo": "Crude Oil",
+                            "data_source": "LIVE",
                             "eta": ""
                         }
                         total = len(real_vessel_cache)
-                        if total % 10 == 0:
-                            print(f"[AIS] Tracking {total} vessels live.")
+                        print(f"[AIS] New vessel: {mmsi} ({meta.get('ShipName','').strip() or 'UNNAMED'}) — total live: {total}")
 
                     vessel = real_vessel_cache[mmsi]
 
@@ -91,6 +98,23 @@ async def connect_ais_stream(api_key: str):
                         lng = pos.get("Longitude")
                         if lat is not None and lng is not None:
                             # Filter out invalid positions (0,0 is an AIS null position)
+                            if not (abs(lat) < 0.01 and abs(lng) < 0.01):
+                                vessel["current_position"] = {
+                                    "lat": round(lat, 5),
+                                    "lng": round(lng, 5)
+                                }
+                        sog = pos.get("Sog")
+                        cog = pos.get("Cog")
+                        if sog is not None:
+                            vessel["speed_knots"] = round(float(sog), 1)
+                        if cog is not None:
+                            vessel["heading"] = round(float(cog), 1)
+
+                    elif msg_type == "StandardClassBPositionReport":
+                        pos = data.get("Message", {}).get("StandardClassBPositionReport", {})
+                        lat = pos.get("Latitude")
+                        lng = pos.get("Longitude")
+                        if lat is not None and lng is not None:
                             if not (abs(lat) < 0.01 and abs(lng) < 0.01):
                                 vessel["current_position"] = {
                                     "lat": round(lat, 5),
