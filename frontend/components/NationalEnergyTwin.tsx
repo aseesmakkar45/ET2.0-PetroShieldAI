@@ -247,30 +247,30 @@ const SCENARIOS: Record<EventId, { title: string; severity: string; narrative: s
 // COLOUR PALETTE — warm military satellite-imagery theme
 // ─────────────────────────────────────────────────────────────────────────────
 const C = {
-  bg:           '#09100f',
-  ocean:        '#0a1318',
-  land:         '#111c14',
-  landBorder:   'rgba(180,160,100,0.18)',
-  indiaLand:    '#132218',
-  indiaBorder:  'rgba(200,180,100,0.35)',
-  primary:      '#d4a847',
-  primaryGlow:  'rgba(212,168,71,0.5)',
-  secondary:    '#7dbf8c',
-  secondaryGlow:'rgba(125,191,140,0.4)',
-  danger:       '#e05c3a',
-  dangerGlow:   'rgba(224,92,58,0.5)',
-  warning:      '#c8933a',
-  safe:         '#5aa068',
-  text:         '#c4b896',
-  textDim:      'rgba(196,184,150,0.4)',
-  textFaint:    'rgba(196,184,150,0.2)',
-  gridLine:     'rgba(212,168,71,0.04)',
-  border:       'rgba(212,168,71,0.15)',
-  borderFaint:  'rgba(212,168,71,0.07)',
-  consoleGreen: '#7dbf8c',
-  consoleWarn:  '#c8933a',
-  consoleCrit:  '#e05c3a',
-  consoleAct:   '#d4a847',
+  bg:           '#f0f4f8',
+  ocean:        '#dce8f5',
+  land:         '#f8fafc',
+  landBorder:   'rgba(100,116,139,0.25)',
+  indiaLand:    '#e8f5e9',
+  indiaBorder:  'rgba(34,139,86,0.45)',
+  primary:      '#c89a20',
+  primaryGlow:  'rgba(200,154,32,0.4)',
+  secondary:    '#1e8a4a',
+  secondaryGlow:'rgba(30,138,74,0.35)',
+  danger:       '#dc2626',
+  dangerGlow:   'rgba(220,38,38,0.4)',
+  warning:      '#d97706',
+  safe:         '#16a34a',
+  text:         '#1e293b',
+  textDim:      'rgba(30,41,59,0.55)',
+  textFaint:    'rgba(30,41,59,0.3)',
+  gridLine:     'rgba(100,116,139,0.08)',
+  border:       'rgba(100,116,139,0.2)',
+  borderFaint:  'rgba(100,116,139,0.1)',
+  consoleGreen: '#16a34a',
+  consoleWarn:  '#d97706',
+  consoleCrit:  '#dc2626',
+  consoleAct:   '#c89a20',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,11 +515,11 @@ export default function NationalEnergyTwin() {
 
       {/* ══ TOP COMMAND BAR ══ */}
       <div style={{
-        background: 'rgba(9,16,15,0.98)',
+        background: 'rgba(240,244,248,0.98)',
         borderBottom: `1px solid ${C.border}`,
         padding: '7px 16px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0, boxShadow: '0 2px 20px rgba(0,0,0,0.8)', zIndex: 100,
+        flexShrink: 0, boxShadow: '0 2px 12px rgba(100,116,139,0.12)', zIndex: 100,
       }}>
         {/* Left: mode + scenario */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
