@@ -2502,47 +2502,47 @@ export default function CommandCenter({ view }: { view?: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
         {/* Left Side: Controls, Alerts & Risk Feeds */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', paddingRight: 4 }}>
-          {/* Map Layer checklist */}
+          {/* Map Layer checklist and Compact Alerts Grid */}
           <div className="glass-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px' }}>MAP LAYERS</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 10.5, color: 'var(--color-text-secondary)' }}>
-              {([
-                { id: 'routes',      label: 'Trade Routes',        color: '#3b82f6' },
-                { id: 'ports',       label: 'Ports & Terminals',   color: '#10b981' },
-                { id: 'incidents',   label: 'Incidents & Alerts',  color: '#ef4444' },
-                { id: 'chokepoints', label: 'Chokepoint Overlays', color: '#ef4444' },
-                { id: 'suppliers',   label: 'Supplier Hubs',       color: '#f59e0b' },
-                { id: 'storage',     label: 'Storage Facilities',  color: '#eab308' },
-                { id: 'weather',     label: 'Weather & Cyclones',  color: '#6366f1' }
-              ] as const).map(layer => (
-                <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
-                  <input
-                    type="checkbox"
-                    checked={mapLayers[layer.id]}
-                    onChange={() => toggleMapLayer(layer.id)}
-                    style={{ cursor: 'pointer', accentColor: layer.color }}
-                  />
-                  <span style={{ color: mapLayers[layer.id] ? 'var(--color-text-primary)' : 'var(--color-text-muted)', transition: 'color 0.2s' }}>
-                    {layer.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Compact Alerts Severity Count Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {[
-              { label: 'CRITICAL', count: 12, color: 'var(--color-risk-critical)', bg: 'rgba(239, 68, 68, 0.08)' },
-              { label: 'HIGH', count: 26, color: 'var(--color-risk-high)', bg: 'rgba(249, 115, 22, 0.08)' },
-              { label: 'MEDIUM', count: 18, color: 'var(--color-risk-moderate)', bg: 'rgba(245, 158, 11, 0.08)' },
-              { label: 'LOW', count: 9, color: 'var(--color-risk-low)', bg: 'rgba(16, 185, 129, 0.08)' }
-            ].map((sev, idx) => (
-              <div key={idx} style={{ background: sev.bg, border: `1px solid ${sev.color}`, borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 8, fontWeight: 700, color: sev.color, letterSpacing: '0.5px' }}>{sev.label}</span>
-                <span className="mono" style={{ fontSize: 16, fontWeight: 800, color: sev.color }}>{sev.count}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px' }}>MAP LAYERS & ALERTS</span>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 10.5, color: 'var(--color-text-secondary)', flex: 1 }}>
+                {([
+                  { id: 'routes',      label: 'Trade Routes',        color: '#3b82f6' },
+                  { id: 'ports',       label: 'Ports & Terminals',   color: '#10b981' },
+                  { id: 'incidents',   label: 'Incidents & Alerts',  color: '#ef4444' },
+                  { id: 'chokepoints', label: 'Chokepoint Overlays', color: '#ef4444' },
+                  { id: 'suppliers',   label: 'Supplier Hubs',       color: '#f59e0b' },
+                  { id: 'storage',     label: 'Storage Facilities',  color: '#eab308' },
+                  { id: 'weather',     label: 'Weather & Cyclones',  color: '#6366f1' }
+                ] as const).map(layer => (
+                  <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={mapLayers[layer.id]}
+                      onChange={() => toggleMapLayer(layer.id)}
+                      style={{ cursor: 'pointer', accentColor: layer.color }}
+                    />
+                    <span style={{ color: mapLayers[layer.id] ? 'var(--color-text-primary)' : 'var(--color-text-muted)', transition: 'color 0.2s', whiteSpace: 'nowrap' }}>
+                      {layer.label}
+                    </span>
+                  </label>
+                ))}
               </div>
-            ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { label: 'CRITICAL', count: 12, color: 'var(--color-risk-critical)', bg: 'rgba(239, 68, 68, 0.08)' },
+                  { label: 'HIGH', count: 26, color: 'var(--color-risk-high)', bg: 'rgba(249, 115, 22, 0.08)' },
+                  { label: 'MEDIUM', count: 18, color: 'var(--color-risk-moderate)', bg: 'rgba(245, 158, 11, 0.08)' },
+                  { label: 'LOW', count: 9, color: 'var(--color-risk-low)', bg: 'rgba(16, 185, 129, 0.08)' }
+                ].map((sev, idx) => (
+                  <div key={idx} style={{ background: sev.bg, border: `1px solid ${sev.color}`, borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: sev.color, letterSpacing: '0.5px' }}>{sev.label}</span>
+                    <span className="mono" style={{ fontSize: 16, fontWeight: 800, color: sev.color }}>{sev.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Bayesian Risk Card */}

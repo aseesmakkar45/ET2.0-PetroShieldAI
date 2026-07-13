@@ -10,15 +10,6 @@ import {
   Globe, Eye, FileText
 } from 'lucide-react'
 
-const MAIN_FEATURES = [
-  { label: 'Real-time Risk Intelligence', desc: 'Monitor geopolitical, logistics & market risks', icon: Globe },
-  { label: 'AI Scenario Simulation', desc: 'Simulate disruptions & assess impacts', icon: Zap },
-  { label: 'Smart Procurement', desc: 'AI-driven supplier recommendations', icon: ShoppingCart },
-  { label: 'Geospatial Intelligence', desc: 'Visualize global events & supply routes', icon: Map },
-  { label: 'Signal Detection', desc: 'Detect early warning signals', icon: Eye },
-  { label: 'Reports & Insights', desc: 'Actionable recommendations & analytics', icon: FileText }
-]
-
 const NAV_ITEMS = [
   { href: '/dashboard',                          label: '1. Dashboard (Overview)',      icon: LayoutDashboard },
   { href: '/dashboard/risk-intelligence',        label: '2. Geospatial Risk Intel',     icon: Globe },
@@ -78,27 +69,6 @@ export default function Sidebar() {
       {/* Sidebar Content Scrollable Area */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
         
-        {/* Main Features Info List */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.8px', padding: '0 8px 8px', textTransform: 'uppercase' }}>
-            Main Features
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {MAIN_FEATURES.map((feat, idx) => {
-              const Icon = feat.icon
-              return (
-                <div key={idx} style={{ display: 'flex', gap: 8, padding: '6px 8px', borderRadius: 6, background: 'rgba(248,250,252,0.7)', border: '1px solid #f1f5f9' }}>
-                  <Icon size={14} color="#3b82f6" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>{feat.label}</div>
-                    <div style={{ fontSize: 9, color: '#334155', lineHeight: 1.3, marginTop: 1 }}>{feat.desc}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
         {/* Platform Pages Navigation */}
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.8px', padding: '0 8px 8px', textTransform: 'uppercase' }}>
