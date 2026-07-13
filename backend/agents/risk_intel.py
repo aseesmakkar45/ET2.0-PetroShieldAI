@@ -64,8 +64,11 @@ def run_risk_intel_agent(
     """
     G = get_graph()
     
+    print(f"[AGENT 1 - RiskIntel] Starting parsing of raw signal: '{raw_signal[:120]}...'")
+    
     # Step 1: Query Graph-RAG for historical & policy alignment
     rag_result = query_graph_rag(raw_signal, G)
+    print(f"[AGENT 1 - RiskIntel] Graph-RAG alignment complete. Found entities: {rag_result['kg_entities_used']}")
     
     # Step 2: Extract entities & affected paths
     affected_countries = []
@@ -111,6 +114,8 @@ def run_risk_intel_agent(
             affected_coordinates.append(LatLng(lat=wps[0]["lat"], lng=wps[0]["lng"]))
             affected_coordinates.append(LatLng(lat=wps[-1]["lat"], lng=wps[-1]["lng"]))
 
+    print(f"[AGENT 1 - RiskIntel] Entity mapping: affected_countries={affected_countries}, affected_chokepoints={affected_chokepoints}, affected_corridors={affected_corridors}")
+
     # Step 3: Run Bayesian Risk Scoring (calibrated weights)
     # Mocking signal components based on query keywords
     is_conflict = "strike" in raw_signal.lower() or "conflict" in raw_signal.lower() or "blockade" in raw_signal.lower()
@@ -124,6 +129,8 @@ def run_risk_intel_agent(
     policy_signal = 0.70 if "policy" in raw_signal.lower() or "quota" in raw_signal.lower() else 0.20
     historical_frequency = 0.60
     opec_policy = 0.80 if is_opec else 0.20
+
+    print(f"[AGENT 1 - RiskIntel] Extracted keywords & indicators: conflict={is_conflict}, sanctions={is_sanctions}, opec={is_opec}")
 
     weights = {
         "geopolitical_tension": 0.25,
@@ -149,6 +156,8 @@ def run_risk_intel_agent(
     prior = 0.12 if "cp_hormuz" in affected_chokepoints else 0.05
     composite_score = (raw_score * 0.7 + prior * 0.3) * 100
     
+    print(f"[AGENT 1 - RiskIntel] Scoring components: raw_score={raw_score:.3f}, prior={prior:.3f}, composite_score={composite_score:.1f}%")
+
     # Determine severity
     if composite_score >= 55:
         severity = "CRITICAL"
@@ -163,6 +172,8 @@ def run_risk_intel_agent(
         severity = "MONITOR"
         rec_action = "LOG_AND_MONITOR"
 
+    print(f"[AGENT 1 - RiskIntel] Bayesian evaluation complete: severity={severity}, recommended_action={rec_action}")
+
     # Step 4: Extract Vessel Anomalies (AIS Tracking)
     vessel_anomalies = []
     if ais_data and is_conflict:
@@ -174,6 +185,7 @@ def run_risk_intel_agent(
                 anomaly_type="CONGESTION" if idx == 0 else "ROUTE_DEVIATION",
                 description=f"Tanker {v['name']} showing anomalous behavior near active crisis corridor."
             ))
+            print(f"[AGENT 1 - RiskIntel] Flagged Vessel Anomaly: {v['name']} (MMSI: {v['mmsi']}) due to local conflict signature.")
 
     # Construct geospatial evidence
     geo_evidence = GeospatialEvidence(

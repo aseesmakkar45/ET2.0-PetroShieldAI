@@ -1899,6 +1899,27 @@ export default function CommandCenter({ view }: { view?: string }) {
               </div>
               <p style={{ fontSize: 11, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{risk.event_summary}</p>
               
+              {risk.article_url && (
+                <a 
+                  href={risk.article_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{
+                    fontSize: 10,
+                    color: '#3b82f6',
+                    textDecoration: 'underline',
+                    alignSelf: 'flex-start',
+                    marginTop: -2,
+                    marginBottom: 2,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  Source Article ↗
+                </a>
+              )}
+              
               <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4 }}>
                 <span>Disruption Prob: <strong style={{ color: '#ef4444' }}>{risk.disruption_probability}%</strong></span>
                 <span>Shortfall Est: <strong style={{ color: 'var(--color-text-primary)' }}>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
@@ -2549,9 +2570,12 @@ export default function CommandCenter({ view }: { view?: string }) {
           {renderDetailedRiskFeedCard()}
         </div>
 
-        {/* Right Side: Map (Central Focus) */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          {renderMapCard(680, mapLayers)}
+        {/* Right Side: Map (Central Focus) + Live System Terminal */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            {renderMapCard(460, mapLayers)}
+          </div>
+          {renderLiveTerminalLogsCard()}
         </div>
       </div>
     )

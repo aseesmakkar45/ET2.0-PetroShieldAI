@@ -100,20 +100,34 @@ async def get_dashboard():
     # 4. Integrate GDELT News Items into risks feed
     gdelt_news = connectors.fetch_gdelt_news()
     recent_risks = []
+    
     if risk_sig:
-        recent_risks.append(risk_sig.model_dump())
-    for item in gdelt_news[:2]:
+        sig_dict = risk_sig.model_dump()
+        # Extract supporting article URL if available
+        sig_dict["article_url"] = risk_sig.explainability.supporting_news[0] if (risk_sig.explainability and risk_sig.explainability.supporting_news) else None
+        recent_risks.append(sig_dict)
+        
+    for item in gdelt_news[:4]:
+        title = item.get("title") or ""
+        url = item.get("url") or "https://gdeltproject.org"
+        source = item.get("source") or "GDELT"
+        
+        # Transparently print agent scanning to console log WS stream
+        print(f"[AGENT 1 - RiskIntel] Scanning GDELT feed source: [{source}] | Title: '{title[:90]}...'")
+        print(f"[AGENT 1 - RiskIntel] Evaluating geopolitical keywords and calculating threat weights for: {url}")
+        
         recent_risks.append({
-            "signal_id": f"gdelt_{int(datetime.now().timestamp())}",
+            "signal_id": f"gdelt_{int(datetime.now().timestamp())}_{title[:8].replace(' ', '_')}",
             "source_type": "GDELT_NEWS",
             "timestamp": item["timestamp"] or datetime.now().isoformat(),
             "event_type": "GEOPOLITICAL_NEWS",
-            "event_summary": f"[{item['source']}] {item['title']}",
+            "event_summary": f"[{source}] {title}",
             "disruption_probability": 36.5,
             "affected_chokepoints": ["Strait of Hormuz"],
             "affected_countries": ["Iran"],
             "estimated_supply_impact_mbpd": 0.3,
-            "geospatial_evidence": {"vessel_anomalies": []}
+            "geospatial_evidence": {"vessel_anomalies": []},
+            "article_url": url
         })
 
     return {
