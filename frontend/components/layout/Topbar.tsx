@@ -6,9 +6,10 @@ import { Bell, RefreshCw, User, Wifi, WifiOff, Sun, Moon } from 'lucide-react'
 interface TopbarProps {
   title: string
   subtitle?: string
+  rightTitleContent?: React.ReactNode
 }
 
-export default function Topbar({ title, subtitle }: TopbarProps) {
+export default function Topbar({ title, subtitle, rightTitleContent }: TopbarProps) {
   const [time, setTime] = useState('')
   const [connected, setConnected] = useState(true)
   const [alertCount] = useState(3)
@@ -61,13 +62,16 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
       backdropFilter: 'blur(20px)',
     }}>
       {/* Page title */}
-      <div style={{ flex: 1 }}>
-        <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1 }}>
-          {title}
-        </h1>
-        {subtitle && (
-          <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{subtitle}</p>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1 }}>
+        <div style={{ flexShrink: 0 }}>
+          <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1, whiteSpace: 'nowrap' }}>
+            {title}
+          </h1>
+          {subtitle && (
+            <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2, whiteSpace: 'nowrap' }}>{subtitle}</p>
+          )}
+        </div>
+        {rightTitleContent}
       </div>
 
       {/* Right section */}

@@ -2545,9 +2545,6 @@ export default function CommandCenter({ view }: { view?: string }) {
             </div>
           </div>
 
-          {/* Bayesian Risk Card */}
-          {renderBayesianProbCard()}
-
           {/* Live Risk Feed Card */}
           {renderDetailedRiskFeedCard()}
         </div>
