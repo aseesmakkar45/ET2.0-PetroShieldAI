@@ -1673,11 +1673,21 @@ export default function CommandCenter({ view }: { view?: string }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Terminal size={14} color="#10b981" />
-            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>
-              AUTONOMOUS SYSTEM TERMINAL (LIVE WS STREAM)
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span style={{ fontSize: 10, color: '#10b981', fontWeight: 700, letterSpacing: '0.5px' }}>
+                AI AGENT COGNITIVE CONSOLE
+              </span>
+              <span style={{ fontSize: 8, color: 'var(--color-text-muted)', letterSpacing: '0.3px' }}>
+                Live: Graph-RAG · Keyword Extraction · Bayesian Scoring · Severity Evaluation
+              </span>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {systemLogs.length > 0 && (
+              <span style={{ fontSize: 8, color: '#64748b', background: 'rgba(100,116,139,0.1)', padding: '1px 6px', borderRadius: 10 }}>
+                {systemLogs.length} lines
+              </span>
+            )}
             <button 
               onClick={() => setSystemLogs([])}
               style={{
@@ -1700,31 +1710,66 @@ export default function CommandCenter({ view }: { view?: string }) {
           </div>
         </div>
 
+        {/* Color Legend */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 8, color: '#475569' }}>
+          <span style={{ color: '#34d399' }}>■ Agent 1 (RiskIntel)</span>
+          <span style={{ color: '#60a5fa' }}>■ Agent 2-5</span>
+          <span style={{ color: '#a78bfa' }}>■ Bayesian Math</span>
+          <span style={{ color: '#67e8f9' }}>■ Keywords/RAG</span>
+          <span style={{ color: '#fbbf24' }}>■ Warning</span>
+          <span style={{ color: '#f87171' }}>■ Critical/Error</span>
+          <span style={{ color: '#f59e0b' }}>■ AIS/Vessel</span>
+        </div>
+
         <div style={{
-          background: '#040811',
-          border: '1px solid var(--color-border)',
+          background: '#020712',
+          border: '1px solid rgba(16, 185, 129, 0.25)',
           borderRadius: 6,
-          padding: 12,
-          height: 180,
+          padding: '10px 12px',
+          height: 280,
           overflowY: 'auto',
-          fontFamily: 'monospace',
-          fontSize: 9.5,
-          color: '#34d399',
+          fontFamily: '"Courier New", Courier, monospace',
+          fontSize: 10,
           display: 'flex',
           flexDirection: 'column',
-          gap: 4,
-          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.8)'
+          gap: 2,
+          boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.9)'
         }}>
           {systemLogs.length > 0 ? (
-            systemLogs.map((log, idx) => (
-              <div key={idx} style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
-                <span style={{ color: '#64748b', marginRight: 6 }}>&gt;</span>
-                {log}
-              </div>
-            ))
+            systemLogs.map((log, idx) => {
+              // Color-code log lines by prefix
+              const isAgent1     = log.includes('[AGENT 1')
+              const isAgent2to5  = /\[AGENT [2-5]/.test(log)
+              const isCritical   = log.includes('CRITICAL') || log.includes('✗') || log.includes('ERROR')
+              const isWarning    = log.includes('ELEVATED') || log.includes('WARN') || log.includes('WARNING')
+              const isSeparator  = log.startsWith('====') || log.startsWith('----')
+              const isAIS        = log.includes('[AIS]')
+              const isSuccess    = log.includes('✔') || log.includes('Successfully') || log.includes('complete')
+              const isBayesian   = log.includes('Scoring') || log.includes('Bayesian') || log.includes('raw_score') || log.includes('composite_score')
+              const isKeyword    = log.includes('keywords') || log.includes('conflict=') || log.includes('Graph-RAG')
+
+              let color = '#34d399'  // default green
+              if (isSeparator)  color = '#1e3a2e'
+              else if (isCritical)   color = '#f87171'
+              else if (isWarning)    color = '#fbbf24'
+              else if (isBayesian)   color = '#a78bfa'
+              else if (isKeyword)    color = '#67e8f9'
+              else if (isAgent2to5)  color = '#60a5fa'
+              else if (isAIS)        color = '#f59e0b'
+              else if (isSuccess)    color = '#86efac'
+
+              return (
+                <div key={idx} style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap', color, lineHeight: 1.5, opacity: isSeparator ? 0.3 : 1 }}>
+                  {!isSeparator && <span style={{ color: '#1e3a2e', marginRight: 4 }}>&gt;</span>}
+                  {log}
+                </div>
+              )
+            })
           ) : (
-            <div style={{ color: '#475569', fontStyle: 'italic' }}>
-              Listening for pipeline logs... (System is monitoring news and live AIS corridor vessels)
+            <div style={{ color: '#1e3a2e', fontStyle: 'italic', paddingTop: 8 }}>
+              <div style={{ color: '#34d399', opacity: 0.5 }}>$ petroshield-agent --watch --live</div>
+              <div style={{ marginTop: 6, opacity: 0.5 }}>Waiting for news cycle... Agent will log its Graph-RAG entity extraction,</div>
+              <div style={{ opacity: 0.5 }}>keyword scoring, and Bayesian disruption probability computation here.</div>
             </div>
           )}
           <div ref={terminalEndRef} />
@@ -1732,6 +1777,7 @@ export default function CommandCenter({ view }: { view?: string }) {
       </div>
     )
   }
+
 
   // Live Alerts / Recommendations Card
   function renderLiveAlertsRecommendationsCard() {
@@ -1895,11 +1941,33 @@ export default function CommandCenter({ view }: { view?: string }) {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#f87171' }}>{risk.event_type}</span>
-                <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{risk.timestamp.slice(11, 16)} UTC</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {risk.severity && (
+                    <span style={{
+                      fontSize: 8,
+                      fontWeight: 700,
+                      letterSpacing: '0.5px',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: risk.severity === 'CRITICAL' ? 'rgba(239,68,68,0.2)' :
+                                  risk.severity === 'ELEVATED' ? 'rgba(245,158,11,0.2)' :
+                                  risk.severity === 'ALERT'    ? 'rgba(59,130,246,0.2)' : 'rgba(100,116,139,0.2)',
+                      color: risk.severity === 'CRITICAL' ? '#f87171' :
+                             risk.severity === 'ELEVATED' ? '#fbbf24' :
+                             risk.severity === 'ALERT'    ? '#60a5fa' : '#94a3b8'
+                    }}>
+                      {risk.severity}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>
+                    {(risk.timestamp || '').length >= 16 ? risk.timestamp.slice(11, 16) + ' UTC' : 'LIVE'}
+                  </span>
+                </div>
               </div>
               <p style={{ fontSize: 11, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{risk.event_summary}</p>
               
-              {risk.article_url && (
+              {/* Only render link when article_url is a real external HTTP URL */}
+              {risk.article_url && typeof risk.article_url === 'string' && risk.article_url.startsWith('http') && (
                 <a 
                   href={risk.article_url} 
                   target="_blank" 
@@ -1907,22 +1975,28 @@ export default function CommandCenter({ view }: { view?: string }) {
                   style={{
                     fontSize: 10,
                     color: '#3b82f6',
-                    textDecoration: 'underline',
+                    textDecoration: 'none',
                     alignSelf: 'flex-start',
-                    marginTop: -2,
+                    marginTop: 2,
                     marginBottom: 2,
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 4
+                    gap: 4,
+                    padding: '3px 8px',
+                    background: 'rgba(59,130,246,0.1)',
+                    borderRadius: 4,
+                    border: '1px solid rgba(59,130,246,0.3)',
+                    fontWeight: 600
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Source Article ↗
+                  ↗ Read Source Article
                 </a>
               )}
               
               <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                <span>Disruption Prob: <strong style={{ color: '#ef4444' }}>{risk.disruption_probability}%</strong></span>
-                <span>Shortfall Est: <strong style={{ color: 'var(--color-text-primary)' }}>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
+                <span>AI Risk Score: <strong style={{ color: '#ef4444' }}>{typeof risk.disruption_probability === 'number' ? risk.disruption_probability.toFixed(1) : risk.disruption_probability}%</strong></span>
+                <span>Supply Impact: <strong style={{ color: 'var(--color-text-primary)' }}>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
               </div>
               
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>

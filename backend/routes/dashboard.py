@@ -103,31 +103,68 @@ async def get_dashboard():
     
     if risk_sig:
         sig_dict = risk_sig.model_dump()
-        # Extract supporting article URL if available
-        sig_dict["article_url"] = risk_sig.explainability.supporting_news[0] if (risk_sig.explainability and risk_sig.explainability.supporting_news) else None
+        # Only set article_url if it's a real HTTP URL — never the raw signal text
+        raw_url = (
+            risk_sig.explainability.supporting_news[0]
+            if (risk_sig.explainability and risk_sig.explainability.supporting_news)
+            else None
+        )
+        sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
         recent_risks.append(sig_dict)
-        
+
+    # ── Import agent here to avoid circular import at module level ──
+    from agents.risk_intel import run_risk_intel_agent
+
     for item in gdelt_news[:4]:
         title = item.get("title") or ""
-        url = item.get("url") or "https://gdeltproject.org"
+        url   = item.get("url")   or ""
         source = item.get("source") or "GDELT"
-        
-        # Transparently print agent scanning to console log WS stream
-        print(f"[AGENT 1 - RiskIntel] Scanning GDELT feed source: [{source}] | Title: '{title[:90]}...'")
-        print(f"[AGENT 1 - RiskIntel] Evaluating geopolitical keywords and calculating threat weights for: {url}")
-        
+
+        # Validate article URL — must start with http(s), otherwise drop it
+        article_url = url if url.startswith("http") else None
+
+        print(f"\n{'='*70}")
+        print(f"[AGENT 1 - RiskIntel] ▶ NEW ARTICLE FROM [{source}]")
+        print(f"[AGENT 1 - RiskIntel]   Title   : {title}")
+        print(f"[AGENT 1 - RiskIntel]   URL     : {article_url or '(no direct link available)'}")
+        print(f"{'='*70}")
+
+        # ── Run the full agent pipeline on this article ──────────────────
+        # This fires all Graph-RAG, keyword extraction, and Bayesian logs
+        try:
+            agent_result = run_risk_intel_agent(
+                raw_signal=title,
+                source_type="GDELT_NEWS"
+            )
+            disruption_prob   = agent_result.disruption_probability
+            affected_chokes   = agent_result.affected_chokepoints or ["Strait of Hormuz"]
+            affected_countries= agent_result.affected_countries   or ["Unknown"]
+            estimated_impact  = agent_result.estimated_supply_impact_mbpd
+            event_type        = agent_result.event_type
+            severity          = agent_result.severity
+            print(f"[AGENT 1 - RiskIntel] ✔ Article processed: severity={severity}, prob={disruption_prob:.1f}%")
+        except Exception as exc:
+            print(f"[AGENT 1 - RiskIntel] ✗ Agent error on article: {exc}")
+            disruption_prob   = 25.0
+            affected_chokes   = ["Strait of Hormuz"]
+            affected_countries= ["Unknown"]
+            estimated_impact  = 0.2
+            event_type        = "GEOPOLITICAL_NEWS"
+            severity          = "MONITOR"
+
         recent_risks.append({
             "signal_id": f"gdelt_{int(datetime.now().timestamp())}_{title[:8].replace(' ', '_')}",
             "source_type": "GDELT_NEWS",
-            "timestamp": item["timestamp"] or datetime.now().isoformat(),
-            "event_type": "GEOPOLITICAL_NEWS",
+            "timestamp": item.get("timestamp") or datetime.now().isoformat(),
+            "event_type": event_type,
             "event_summary": f"[{source}] {title}",
-            "disruption_probability": 36.5,
-            "affected_chokepoints": ["Strait of Hormuz"],
-            "affected_countries": ["Iran"],
-            "estimated_supply_impact_mbpd": 0.3,
+            "disruption_probability": disruption_prob,
+            "severity": severity,
+            "affected_chokepoints": affected_chokes,
+            "affected_countries": affected_countries,
+            "estimated_supply_impact_mbpd": estimated_impact,
             "geospatial_evidence": {"vessel_anomalies": []},
-            "article_url": url
+            "article_url": article_url
         })
 
     return {
