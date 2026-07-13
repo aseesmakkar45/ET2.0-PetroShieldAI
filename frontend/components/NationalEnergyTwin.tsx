@@ -592,7 +592,7 @@ export default function NationalEnergyTwin() {
 
         {/* ── LEFT STRIP ── */}
         <div style={{
-          width: 66, background: 'rgba(9,16,15,0.96)',
+          width: 66, background: 'rgba(240,244,248,0.96)',
           borderRight: `1px solid ${C.borderFaint}`,
           display: 'flex', flexDirection: 'column',
           padding: '10px 5px', gap: 5, overflowY: 'auto', flexShrink: 0,
@@ -806,7 +806,7 @@ export default function NationalEnergyTwin() {
                     {canShow('tanker_names') && (
                       <>
                         <text x="7" y="-4" fontSize="6.5" fontWeight="700" fill={ringColor}
-                          style={{ pointerEvents: 'none', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.95))' }}>
+                          style={{ pointerEvents: 'none', filter: 'drop-shadow(0 1px 3px rgba(100,116,139,0.95))' }}>
                           {tk.name}
                         </text>
                         {isStopped && <text x="7" y="4" fontSize="5.5" fill={C.danger}>BLOCKED</text>}
@@ -844,7 +844,7 @@ export default function NationalEnergyTwin() {
                 return (
                   <g key={p.id} transform={`translate(${p.x},${p.y})`}>
                     <circle r="13" fill="none" stroke={color} strokeWidth="0.8" opacity="0.2" className="pulse-ring"/>
-                    <circle r="6" fill="rgba(9,16,15,0.85)" stroke={color} strokeWidth="1.5"
+                    <circle r="6" fill="rgba(240,244,248,0.85)" stroke={color} strokeWidth="1.5"
                       filter={isCritical ? 'url(#glow-danger)' : 'url(#glow-amber)'}/>
                     <circle r="2.5" fill={color}/>
                     {canShow('port_names') && (
@@ -853,7 +853,7 @@ export default function NationalEnergyTwin() {
                         {L.has('inventory') && canShow('inventory_detail') && (
                           <>
                             <text x="9" y="4" fontSize="6.5" fill={color} opacity="0.9">INV: {p.inventory}%</text>
-                            <rect x="9" y="7" width="26" height="2.5" rx="1" fill="rgba(255,255,255,0.08)"/>
+                            <rect x="9" y="7" width="26" height="2.5" rx="1" fill="rgba(15,23,42,0.08)"/>
                             <rect x="9" y="7" width={26 * p.inventory / 100} height="2.5" rx="1" fill={color} opacity="0.75"/>
                             {p.waiting > 0 && <text x="9" y="16" fontSize="6" fill={C.warning}>{p.waiting} WAITING</text>}
                           </>
@@ -878,7 +878,7 @@ export default function NationalEnergyTwin() {
                   <g key={r.id} transform={`translate(${r.x},${r.y})`}>
                     <circle r="10" fill="none" stroke={color} strokeWidth="1" opacity="0.25" className="pulse-ring"/>
                     <polygon points="0,-5.5 4.8,-2.8 4.8,2.8 0,5.5 -4.8,2.8 -4.8,-2.8"
-                      fill="rgba(9,16,15,0.85)" stroke={color} strokeWidth="1.5" filter="url(#glow-warm)"/>
+                      fill="rgba(240,244,248,0.85)" stroke={color} strokeWidth="1.5" filter="url(#glow-warm)"/>
                     {canShow('refinery_names') && (
                       <>
                         <text x="-10" y="-8" fontSize="7" fontWeight="700" fill={color}>{r.name}</text>
@@ -896,7 +896,7 @@ export default function NationalEnergyTwin() {
                 const fillRad = 7 * s.fillLevel / 100
                 return (
                   <g key={s.id} transform={`translate(${s.x},${s.y})`}>
-                    <polygon points="0,-8 6,0 0,8 -6,0" fill="rgba(9,16,15,0.9)"
+                    <polygon points="0,-8 6,0 0,8 -6,0" fill="rgba(240,244,248,0.9)"
                       stroke={color} strokeWidth="1.5" filter={s.releasing ? 'url(#glow-green)' : 'url(#glow-amber)'}/>
                     <polygon points={`0,-${fillRad} ${fillRad*0.75},0 0,${fillRad} -${fillRad*0.75},0`}
                       fill={color} opacity="0.6"/>
@@ -957,7 +957,7 @@ export default function NationalEnergyTwin() {
 
               {/* ── LEGEND ── */}
               <g transform="translate(12,558)">
-                <rect width="200" height="50" rx="3" fill="rgba(9,16,15,0.78)" stroke={C.borderFaint} strokeWidth="0.8"/>
+                <rect width="200" height="50" rx="3" fill="rgba(240,244,248,0.78)" stroke={C.borderFaint} strokeWidth="0.8"/>
                 {[
                   { color: C.primary,   label: 'Active Supply Route', dash: '10 5' },
                   { color: C.danger,    label: 'Blocked / Disrupted', dash: '6 6' },
@@ -976,7 +976,7 @@ export default function NationalEnergyTwin() {
           {/* Vignette */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at center, transparent 52%, rgba(9,16,15,0.65) 100%)',
+            background: 'radial-gradient(ellipse at center, transparent 52%, rgba(240,244,248,0.65) 100%)',
           }}/>
 
           {/* Corner HUD */}
@@ -1007,12 +1007,12 @@ export default function NationalEnergyTwin() {
                 { id: 'cyclone',label: '🌀 Cyclone Gujarat', sev: 'MODERATE' },
               ] as { id: EventId; label: string; sev: string }[]).map(ev => (
                 <button key={ev.id} onClick={() => fireEvent(ev.id)} style={{
-                  background: 'rgba(9,16,15,0.94)',
+                  background: 'rgba(240,244,248,0.94)',
                   border: '1px solid rgba(224,92,58,0.35)',
                   borderRadius: 6, padding: '7px 14px',
                   color: C.warning, fontSize: 11, fontWeight: 700,
                   cursor: 'pointer', letterSpacing: '0.5px',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.7)',
+                  boxShadow: '0 2px 12px rgba(100,116,139,0.7)',
                   backdropFilter: 'blur(8px)', transition: 'all 0.2s',
                 }}>
                   {ev.label}
@@ -1026,7 +1026,7 @@ export default function NationalEnergyTwin() {
           {mode === 'SIMULATION' && (
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0,
-              background: 'rgba(9,16,15,0.95)',
+              background: 'rgba(240,244,248,0.95)',
               borderTop: `1px solid ${C.border}`,
               padding: '8px 16px', zIndex: 20,
             }}>
@@ -1061,21 +1061,21 @@ export default function NationalEnergyTwin() {
               position: 'absolute',
               left: 76, bottom: mode === 'SIMULATION' ? 58 : 12,
               width: 400, maxHeight: 190,
-              background: 'rgba(9,16,8,0.85)',
+              background: 'rgba(240,244,248,0.85)',
               border: '1px solid rgba(125,191,140,0.25)',
               borderRadius: 6,
               backdropFilter: 'blur(14px)',
               zIndex: 50,
               overflow: 'hidden',
               display: 'flex', flexDirection: 'column',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+              boxShadow: '0 4px 24px rgba(100,116,139,0.5)',
             }}>
               {/* Console header */}
               <div style={{
                 padding: '5px 10px',
                 borderBottom: '1px solid rgba(125,191,140,0.15)',
                 display: 'flex', alignItems: 'center', gap: 6,
-                background: 'rgba(0,0,0,0.35)',
+                background: 'rgba(100,116,139,0.35)',
                 flexShrink: 0,
               }}>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -1128,7 +1128,7 @@ export default function NationalEnergyTwin() {
         {/* ── AI DECISION CENTER PANEL ── */}
         <div style={{
           width: 330,
-          background: 'rgba(9,16,15,0.98)',
+          background: 'rgba(240,244,248,0.98)',
           borderLeft: `1px solid ${C.borderFaint}`,
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden', flexShrink: 0,
@@ -1202,7 +1202,7 @@ export default function NationalEnergyTwin() {
 
                 {/* AI Narrative */}
                 <div style={{
-                  background: 'rgba(0,0,0,0.28)', border: `1px solid ${C.borderFaint}`,
+                  background: 'rgba(100,116,139,0.28)', border: `1px solid ${C.borderFaint}`,
                   borderRadius: 6, padding: 10,
                 }}>
                   <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 6 }}>
@@ -1257,7 +1257,7 @@ export default function NationalEnergyTwin() {
                           {r.val.toFixed(0)}%
                         </span>
                       </div>
-                      <div style={{ height: 3.5, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                      <div style={{ height: 3.5, background: 'rgba(15,23,42,0.06)', borderRadius: 2 }}>
                         <div style={{
                           height: '100%', borderRadius: 2, width: `${r.val}%`,
                           background: r.val > 60 ? C.danger : r.val > 35 ? C.warning : C.secondary,
@@ -1282,8 +1282,8 @@ export default function NationalEnergyTwin() {
                       const approved = approvedActions.has(action.id)
                       return (
                         <div key={action.id} style={{
-                          background: approved ? 'rgba(125,191,140,0.04)' : 'rgba(255,255,255,0.02)',
-                          border: approved ? '1px solid rgba(125,191,140,0.28)' : '1px solid rgba(255,255,255,0.07)',
+                          background: approved ? 'rgba(125,191,140,0.04)' : 'rgba(15,23,42,0.02)',
+                          border: approved ? '1px solid rgba(125,191,140,0.28)' : '1px solid rgba(15,23,42,0.07)',
                           borderRadius: 7, padding: '7px 10px',
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
@@ -1319,7 +1319,7 @@ export default function NationalEnergyTwin() {
                 {approvedActions.size > 0 && (
                   <div>
                     <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 6 }}>DECISION LOG</div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.borderFaint}`, borderRadius: 5, padding: 8 }}>
+                    <div style={{ background: 'rgba(100,116,139,0.3)', border: `1px solid ${C.borderFaint}`, borderRadius: 5, padding: 8 }}>
                       {Array.from(approvedActions).map(act => (
                         <div key={act} style={{ fontSize: 8, color: C.secondary, marginBottom: 3, display: 'flex', gap: 6 }}>
                           <span style={{ color: C.textFaint }}>{new Date().toTimeString().split(' ')[0]}</span>
@@ -1340,7 +1340,7 @@ export default function NationalEnergyTwin() {
 
 function btnStyle(color: string): React.CSSProperties {
   return {
-    background: 'rgba(0,0,0,0.3)',
+    background: 'rgba(100,116,139,0.3)',
     border: `1px solid ${color}`,
     borderRadius: 5,
     padding: '5px 12px',
