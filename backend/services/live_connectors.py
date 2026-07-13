@@ -6,6 +6,7 @@ import os
 import csv
 import json
 import urllib.request
+import urllib.parse
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from config import settings
@@ -22,28 +23,31 @@ class LiveDataConnectors:
     def fetch_gdelt_news(self) -> List[Dict[str, Any]]:
         """
         Poll GDELT Project API for recent events matching shipping and maritime threat keywords.
-        Cached for 15 minutes to avoid rate limiting.
+        Cached for 45 minutes to avoid rate limiting (GDELT enforces strict per-IP quotas).
         """
         now = datetime.now()
-        if self.gdelt_last_fetched and (now - self.gdelt_last_fetched) < timedelta(minutes=15):
+        if self.gdelt_last_fetched and (now - self.gdelt_last_fetched) < timedelta(minutes=45):
             return self.gdelt_cache
 
         try:
-            # Query GDELT using keyword filters
-            query = "Hormuz OR Iran OR Red Sea OR Houthi OR tanker OR \"shipping lane\" OR sanctions"
-            url = f"https://api.gdeltproject.org/api/v2/doc/doc?query={urllib.parse.quote(query)}&mode=updates&format=json&maxrecords=10"
-            
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as response:
+            # GDELT Doc 2.0 API — mode=artlist returns article-level JSON
+            query = "Hormuz OR Iran OR \"Red Sea\" OR Houthi OR tanker OR \"shipping lane\" OR sanctions"
+            url = (
+                "https://api.gdeltproject.org/api/v2/doc/doc"
+                f"?query={urllib.parse.quote(query)}"
+                "&mode=artlist&format=json&maxrecords=10&timespan=1d"
+            )
+            req = urllib.request.Request(url, headers={'User-Agent': 'PetroShieldAI/1.0'})
+            with urllib.request.urlopen(req, timeout=12) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 articles = []
                 for item in res_data.get("articles", []):
                     articles.append({
                         "title": item.get("title"),
                         "url": item.get("url"),
-                        "source": item.get("source"),
+                        "source": item.get("domain"),
                         "timestamp": item.get("seendate"),
-                        "summary": item.get("socialimage") or ""
+                        "summary": item.get("title") or ""
                     })
                 self.gdelt_cache = articles
                 self.gdelt_last_fetched = now
@@ -71,7 +75,7 @@ class LiveDataConnectors:
         if self.news_api_last_fetched and (now - self.news_api_last_fetched) < timedelta(minutes=30):
             return self.news_api_cache
 
-        api_key = os.environ.get("NEWSAPI_KEY")
+        api_key = settings.NEWSAPI_KEY
         if not api_key:
             return [{"title": "Supplementary Headline: Standard risk parameters maintained.", "source": "NewsAPI Fallback"}]
 
@@ -97,27 +101,42 @@ class LiveDataConnectors:
 
     def fetch_eia_brent_price(self) -> float:
         """
-        Fetch latest Brent crude spot price from EIA API.
+        Fetch latest Brent crude spot price from EIA API v2.
         Falls back to loading from local CSV (DCOILBRENTEU.csv) if key is missing or request fails.
+        EIA v2 endpoint: /v2/petroleum/pri/spt/data/ with series facet RBRTE.
         """
         now = datetime.now()
         if self.eia_last_fetched and (now - self.eia_last_fetched) < timedelta(hours=6):
             return self.eia_cache.get("brent_price", 82.49)
 
-        api_key = os.environ.get("EIA_API_KEY")
+        api_key = settings.EIA_API_KEY
         if api_key:
             try:
-                # EIA API v4 Series endpoint for Daily Brent Spot Price (PET.RBRTE.D)
-                url = f"https://api.eia.gov/v4/seriesid/PET.RBRTE.D?api_key={api_key}&out=json"
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=5) as response:
+                # EIA API v2 — Daily Brent Crude Spot Price (series RBRTE)
+                params = urllib.parse.urlencode({
+                    "api_key": api_key,
+                    "frequency": "daily",
+                    "data[0]": "value",
+                    "facets[series][]": "RBRTE",
+                    "sort[0][column]": "period",
+                    "sort[0][direction]": "desc",
+                    "offset": "0",
+                    "length": "5"
+                })
+                url = f"https://api.eia.gov/v2/petroleum/pri/spt/data/?{params}"
+                req = urllib.request.Request(url, headers={'User-Agent': 'PetroShieldAI/1.0'})
+                with urllib.request.urlopen(req, timeout=8) as response:
                     res_data = json.loads(response.read().decode('utf-8'))
                     data_points = res_data.get("response", {}).get("data", [])
-                    if data_points:
-                        price = float(data_points[0].get("value", 82.49))
-                        self.eia_cache["brent_price"] = price
-                        self.eia_last_fetched = now
-                        return price
+                    # Find the latest non-null value
+                    for dp in data_points:
+                        raw = dp.get("value")
+                        if raw is not None:
+                            price = float(raw)
+                            self.eia_cache["brent_price"] = price
+                            self.eia_last_fetched = now
+                            print(f"[EIA API] Brent price fetched: ${price:.2f} (period: {dp.get('period')})")
+                            return price
             except Exception as e:
                 print(f"[EIA API] Failed to fetch Brent price: {e}. Falling back to CSV.")
 

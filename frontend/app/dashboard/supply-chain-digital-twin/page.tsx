@@ -7,9 +7,9 @@ import CommandCenter from '@/components/CommandCenter'
 export default function SupplyChainDigitalTwinPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <Topbar title="7. Supply Chain Digital Twin" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
+      <Topbar title="3. Scenario & Digital Twin" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
-        <CommandCenter view="supply-chain-digital-twin" />
+        <CommandCenter view="scenario-simulator" />
       </div>
     </div>
   )

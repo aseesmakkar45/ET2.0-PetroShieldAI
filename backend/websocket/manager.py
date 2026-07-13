@@ -40,6 +40,7 @@ class ConnectionManager:
 # Singleton manager
 alert_manager = ConnectionManager()
 vessel_manager = ConnectionManager()
+log_manager = ConnectionManager()
 
 
 async def risk_alert_broadcaster():

@@ -37,9 +37,10 @@ const sprIcon = createIcon('#eab308')
 
 interface Props {
   mapData?: MapData
+  layers?: Record<string, boolean>
 }
 
-export default function GlobalMap({ mapData }: Props) {
+export default function GlobalMap({ mapData, layers }: Props) {
   const [mapKey, setMapKey] = useState<string>("")
   useEffect(() => {
     setMapKey("map-" + Math.random().toString(36).substr(2, 9))
@@ -49,6 +50,14 @@ export default function GlobalMap({ mapData }: Props) {
   if (!mapKey) {
     return <div style={{ width: '100%', height: '100%', background: '#060d1a' }} />
   }
+
+  // Default all layers to visible when no layers prop provided (e.g. mini-map on Overview)
+  const L_ROUTES      = layers?.routes      ?? true
+  const L_PORTS       = layers?.ports       ?? true
+  const L_INCIDENTS   = layers?.incidents   ?? true
+  const L_CHOKEPOINTS = layers?.chokepoints ?? true
+  const L_SUPPLIERS   = layers?.suppliers   ?? true
+  const L_STORAGE     = layers?.storage     ?? true
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#f8fafc' }}>
@@ -64,8 +73,8 @@ export default function GlobalMap({ mapData }: Props) {
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
 
-        {/* Routes */}
-        {mapData.routes?.map(route => {
+        {/* Routes — toggled by Trade Routes layer */}
+        {L_ROUTES && mapData.routes?.map(route => {
           const isDisrupted = route.risk_score > 50 || (route as any).is_disrupted;
           return (
             <Polyline
@@ -79,8 +88,8 @@ export default function GlobalMap({ mapData }: Props) {
           );
         })}
 
-        {/* Recommended routes (Green Reroutes) */}
-        {(mapData as any).recommended_routes?.map((pathCoords: number[][], idx: number) => (
+        {/* Recommended reroute lines — shown with Trade Routes */}
+        {L_ROUTES && (mapData as any).recommended_routes?.map((pathCoords: number[][], idx: number) => (
           <Polyline
             key={`rec_route_${idx}`}
             positions={pathCoords}
@@ -91,8 +100,8 @@ export default function GlobalMap({ mapData }: Props) {
           />
         ))}
 
-        {/* Vessels */}
-        {mapData.vessels?.map(vessel => {
+        {/* Vessels — toggled by Incidents & Alerts layer */}
+        {L_INCIDENTS && mapData.vessels?.map(vessel => {
           const isLive = vessel.data_source === 'LIVE';
           const iconColor = isLive ? '#10b981' : '#a855f7';
           const heading = (vessel as any).heading ?? 0;
@@ -132,8 +141,8 @@ export default function GlobalMap({ mapData }: Props) {
           );
         })}
 
-        {/* Chokepoints */}
-        {mapData.chokepoints?.map(cp => (
+        {/* Chokepoints — toggled by Chokepoint Overlays layer */}
+        {L_CHOKEPOINTS && mapData.chokepoints?.map(cp => (
           <Marker key={cp.id} position={[cp.lat, cp.lng]} icon={chokepointIcon}>
             <Popup>
               <div style={{ padding: 4 }}>
@@ -147,8 +156,8 @@ export default function GlobalMap({ mapData }: Props) {
           </Marker>
         ))}
 
-        {/* Ports (India) */}
-        {mapData.ports?.map(port => (
+        {/* Ports (India) — toggled by Ports & Terminals layer */}
+        {L_PORTS && mapData.ports?.map(port => (
           <Marker key={port.id} position={[port.coordinates.lat, port.coordinates.lng]} icon={portIcon}>
             <Popup>
               <div style={{ padding: 4 }}>
@@ -159,8 +168,8 @@ export default function GlobalMap({ mapData }: Props) {
           </Marker>
         ))}
 
-        {/* Refineries */}
-        {mapData.refineries?.map(refinery => {
+        {/* Refineries — toggled by Supplier Hubs layer */}
+        {L_SUPPLIERS && mapData.refineries?.map(refinery => {
           const coords = refinery.coordinates;
           if (!coords) return null;
           return (
@@ -178,8 +187,8 @@ export default function GlobalMap({ mapData }: Props) {
           );
         })}
 
-        {/* SPR Facilities */}
-        {mapData.spr_facilities?.map(spr => (
+        {/* SPR Facilities — toggled by Storage Facilities layer */}
+        {L_STORAGE && mapData.spr_facilities?.map(spr => (
           <Marker key={spr.id} position={[spr.lat, spr.lng]} icon={sprIcon}>
             <Popup>
               <div style={{ padding: 4 }}>

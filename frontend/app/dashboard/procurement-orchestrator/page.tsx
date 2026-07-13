@@ -7,7 +7,7 @@ import CommandCenter from '@/components/CommandCenter'
 export default function ProcurementOrchestratorPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <Topbar title="5. Procurement Orchestrator" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
+      <Topbar title="4. Procurement & Reserves" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
         <CommandCenter view="procurement-orchestrator" />
       </div>

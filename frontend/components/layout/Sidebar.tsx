@@ -21,15 +21,11 @@ const MAIN_FEATURES = [
 
 const NAV_ITEMS = [
   { href: '/dashboard',                          label: '1. Dashboard (Overview)',      icon: LayoutDashboard },
-  { href: '/dashboard/risk-intelligence',        label: '2. Risk Intelligence',         icon: AlertTriangle },
-  { href: '/dashboard/geospatial-map',           label: '3. Geospatial Map',            icon: Map },
-  { href: '/dashboard/scenario-simulator',       label: '4. Scenario Simulator',        icon: Zap },
-  { href: '/dashboard/procurement-orchestrator',  label: '5. Procurement Orchestrator',   icon: ShoppingCart },
-  { href: '/dashboard/strategic-reserves',        label: '6. Strategic Reserves',         icon: Database },
-  { href: '/dashboard/supply-chain-digital-twin', label: '7. Supply Chain Digital Twin',  icon: Share2 },
-  { href: '/dashboard/reports-insights',          label: '8. Reports & Insights',         icon: BarChart3 },
-  { href: '/dashboard/alerts-signal-center',      label: '9. Alerts & Signal Center',     icon: Bell },
-  { href: '/dashboard/settings',                 label: '10. Settings',                 icon: Settings },
+  { href: '/dashboard/risk-intelligence',        label: '2. Geospatial Risk Intel',     icon: Globe },
+  { href: '/dashboard/scenario-simulator',       label: '3. Scenario & Digital Twin',   icon: Zap },
+  { href: '/dashboard/procurement-orchestrator',  label: '4. Procurement & Reserves',    icon: ShoppingCart },
+  { href: '/dashboard/reports-insights',          label: '5. Reports & Insights',         icon: BarChart3 },
+  { href: '/dashboard/settings',                 label: '6. Settings',                  icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -91,11 +87,11 @@ export default function Sidebar() {
             {MAIN_FEATURES.map((feat, idx) => {
               const Icon = feat.icon
               return (
-                <div key={idx} style={{ display: 'flex', gap: 8, padding: '6px 8px', borderRadius: 6, background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                <div key={idx} style={{ display: 'flex', gap: 8, padding: '6px 8px', borderRadius: 6, background: 'rgba(248,250,252,0.7)', border: '1px solid #f1f5f9' }}>
                   <Icon size={14} color="#3b82f6" style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{feat.label}</div>
-                    <div style={{ fontSize: 9, color: 'var(--color-text-secondary)', lineHeight: 1.3, marginTop: 1 }}>{feat.desc}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0f172a', lineHeight: 1.2 }}>{feat.label}</div>
+                    <div style={{ fontSize: 9, color: '#334155', lineHeight: 1.3, marginTop: 1 }}>{feat.desc}</div>
                   </div>
                 </div>
               )
@@ -144,13 +140,13 @@ export default function Sidebar() {
                     )}
                     <Icon
                       size={14}
-                      color={isActive ? '#1d4ed8' : '#64748b'}
+                      color={isActive ? '#1d4ed8' : '#334155'}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
                     <span style={{
                       fontSize: 11.5,
                       fontWeight: isActive ? 700 : 500,
-                      color: isActive ? '#1d4ed8' : '#475569',
+                      color: isActive ? '#1d4ed8' : '#1e293b',
                     }}>
                       {item.label}
                     </span>

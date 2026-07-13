@@ -111,6 +111,7 @@ async def get_dashboard():
             "event_summary": f"[{item['source']}] {item['title']}",
             "disruption_probability": 36.5,
             "affected_chokepoints": ["Strait of Hormuz"],
+            "affected_countries": ["Iran"],
             "estimated_supply_impact_mbpd": 0.3,
             "geospatial_evidence": {"vessel_anomalies": []}
         })

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     WS_HOST: str = "localhost"
     WS_PORT: int = 8000
     AISSTREAM_API_KEY: str = "e4786c9a683aa6cb7d494388cb21a2c96923d092"
+    EIA_API_KEY: str = ""
+    NEWSAPI_KEY: str = ""
 
     class Config:
         env_file = ".env"

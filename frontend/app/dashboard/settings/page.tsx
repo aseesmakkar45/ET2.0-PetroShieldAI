@@ -7,7 +7,7 @@ import CommandCenter from '@/components/CommandCenter'
 export default function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <Topbar title="10. Settings" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
+      <Topbar title="6. Settings" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
         <CommandCenter view="settings" />
       </div>

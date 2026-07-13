@@ -7,7 +7,7 @@ import CommandCenter from '@/components/CommandCenter'
 export default function RiskIntelligencePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <Topbar title="2. Risk Intelligence" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
+      <Topbar title="2. Geospatial Risk Intel" subtitle="Cabinet Secretary Taskforce Operations (NECC)" />
       <div style={{ flex: 1, padding: 12 }}>
         <CommandCenter view="risk-intelligence" />
       </div>

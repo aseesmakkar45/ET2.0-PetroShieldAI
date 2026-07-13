@@ -1,21 +1,24 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
 import { 
   Activity, ShieldAlert, Sliders, Settings, CheckCircle, HelpCircle, 
   BookOpen, Terminal, ChevronRight, Copy, Check, Play, RefreshCw,
-  TrendingUp, Truck, Compass, Server, Info, Shield, Layers, Cpu, Globe
+  TrendingUp, Truck, Compass, Server, Info, Shield, Layers, Cpu, Globe,
+  BarChart2, AlertTriangle, Link, Zap, Share2, ShoppingCart, Database
 } from 'lucide-react'
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts'
 import { getDashboard, getMapData, api } from '@/services/api'
 
 // Dynamically import Leaflet Map to avoid SSR errors
 const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
+import NationalEnergyTwin from './NationalEnergyTwin'
 
 export default function CommandCenter({ view }: { view?: string }) {
   const queryClient = useQueryClient()
@@ -34,10 +37,58 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   const [toastAlerts, setToastAlerts] = useState<any[]>([])
 
+  // Digital Twin interactive state
+  const [selectedTwinNode, setSelectedTwinNode] = useState<string | null>(null)
+  const [disruptedTwinNodes, setDisruptedTwinNodes] = useState<Set<string>>(new Set(['hormuz']))
+
+  // Map Layer visibility state
+  const [mapLayers, setMapLayers] = useState<Record<string, boolean>>({
+    routes: true,
+    ports: true,
+    incidents: true,
+    chokepoints: true,
+    suppliers: true,
+    storage: true,
+    weather: false
+  })
+
+  const toggleMapLayer = (id: string) => setMapLayers(prev => ({ ...prev, [id]: !prev[id] }))
+
   // Real-time AIS stream state variables
   const [aisKeyInput, setAisKeyInput] = useState('')
   const [hasRealAisKey, setHasRealAisKey] = useState(false)
   const [aisSaveStatus, setAisSaveStatus] = useState('')
+
+  // Live system logs state
+  const [systemLogs, setSystemLogs] = useState<string[]>([])
+  const terminalEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/logs`
+    const ws = new WebSocket(wsUrl)
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'log_line') {
+          setSystemLogs(prev => {
+            const updated = [...prev, data.message]
+            return updated.slice(-150)
+          })
+        }
+      } catch (err) {
+        console.error('Error parsing WS log:', err)
+      }
+    }
+    return () => {
+      ws.close()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [systemLogs])
 
   useEffect(() => {
     // Fetch initial AIS key status
@@ -247,10 +298,14 @@ export default function CommandCenter({ view }: { view?: string }) {
 
         {/* Main Grid Layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, alignItems: 'start' }}>
-          {/* Left Column (Map + AI Agent Console) */}
+          {/* Left Column (Graphs + AI Agent Console) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {renderMapCard(420)}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {renderSourcingCountriesChart()}
+              {renderPortThroughputChart()}
+            </div>
             {renderAIAgentConsoleCard()}
+            {renderLiveTerminalLogsCard()}
           </div>
 
           {/* Right Column (Briefing + Alerts) */}
@@ -258,6 +313,98 @@ export default function CommandCenter({ view }: { view?: string }) {
             {renderBriefingCard(false)}
             {renderLiveAlertsRecommendationsCard()}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // India's Crude Oil Sourcing by Country (Pie Chart)
+  function renderSourcingCountriesChart() {
+    const data = [
+      { name: 'Russia', value: 37.5, color: '#3b82f6' },
+      { name: 'Iraq', value: 22.1, color: '#f59e0b' },
+      { name: 'Saudi Arabia', value: 18.2, color: '#10b981' },
+      { name: 'UAE', value: 6.4, color: '#8b5cf6' },
+      { name: 'Kuwait', value: 3.2, color: '#ec4899' },
+      { name: 'Nigeria', value: 5.1, color: '#f97316' },
+      { name: 'USA', value: 4.5, color: '#64748b' }
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Globe size={16} color="var(--color-blue-500)" />
+          <span className="section-title" style={{ fontSize: 11 }}>India's Crude Sourcing by Country (Volume % Share)</span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12, alignItems: 'center' }}>
+          <div style={{ height: 230, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}%`} contentStyle={{ background: '#0d1421', border: '1px solid var(--color-border)', fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 230, overflowY: 'auto', paddingRight: 4 }}>
+            {data.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
+                  <span style={{ color: 'var(--color-text-secondary)' }}>{item.name}</span>
+                </div>
+                <span className="mono" style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>{item.value}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Indian Port Crude Imports Throughput and Capacity (Bar Chart)
+  function renderPortThroughputChart() {
+    const data = [
+      { name: 'Mundra', Actual: 95, Capacity: 120 },
+      { name: 'Vadinar', Actual: 82, Capacity: 100 },
+      { name: 'Mumbai', Actual: 48, Capacity: 62 },
+      { name: 'Paradip', Actual: 38, Capacity: 45 },
+      { name: 'Visakhapatnam', Actual: 22, Capacity: 30 },
+      { name: 'Kochi', Actual: 18, Capacity: 22 }
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BarChart2 size={16} color="var(--color-blue-500)" />
+          <span className="section-title" style={{ fontSize: 11 }}>Indian Port Crude Imports & Capacity (Million Tonnes/Year)</span>
+        </div>
+
+        <div style={{ height: 230 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" stroke="#475569" style={{ fontSize: 9 }} />
+              <YAxis stroke="#475569" style={{ fontSize: 9 }} />
+              <Tooltip contentStyle={{ background: '#0d1421', border: '1px solid var(--color-border)', fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 9, marginTop: 4 }} />
+              <Bar dataKey="Actual" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Actual Throughput" />
+              <Bar dataKey="Capacity" fill="rgba(59, 130, 246, 0.15)" stroke="#3b82f6" strokeWidth={1} radius={[4, 4, 0, 0]} name="Design Capacity" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     )
@@ -731,18 +878,25 @@ export default function CommandCenter({ view }: { view?: string }) {
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px' }}>MAP LAYERS</span>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11.5, color: 'var(--color-text-secondary)' }}>
-            {[
-              { id: 'routes', label: 'Trade Routes', active: true },
-              { id: 'ports', label: 'Ports & Terminals', active: true },
-              { id: 'incidents', label: 'Incidents & Alerts', active: true },
-              { id: 'chokepoints', label: 'Chokepoint Overlays', active: true },
-              { id: 'suppliers', label: 'Supplier Hubs', active: true },
-              { id: 'storage', label: 'Storage Facilities', active: true },
-              { id: 'weather', label: 'Weather & Cyclones', active: false }
-            ].map(layer => (
-              <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="checkbox" defaultChecked={layer.active} style={{ cursor: 'pointer' }} />
-                <span>{layer.label}</span>
+            {([
+              { id: 'routes',      label: 'Trade Routes',        color: '#3b82f6' },
+              { id: 'ports',       label: 'Ports & Terminals',   color: '#10b981' },
+              { id: 'incidents',   label: 'Incidents & Alerts',  color: '#ef4444' },
+              { id: 'chokepoints', label: 'Chokepoint Overlays', color: '#ef4444' },
+              { id: 'suppliers',   label: 'Supplier Hubs',       color: '#f59e0b' },
+              { id: 'storage',     label: 'Storage Facilities',  color: '#eab308' },
+              { id: 'weather',     label: 'Weather & Cyclones',  color: '#6366f1' }
+            ] as const).map(layer => (
+              <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={mapLayers[layer.id]}
+                  onChange={() => toggleMapLayer(layer.id)}
+                  style={{ cursor: 'pointer', accentColor: layer.color }}
+                />
+                <span style={{ color: mapLayers[layer.id] ? 'var(--color-text-primary)' : 'var(--color-text-muted)', transition: 'color 0.2s' }}>
+                  {layer.label}
+                </span>
               </label>
             ))}
           </div>
@@ -767,165 +921,428 @@ export default function CommandCenter({ view }: { view?: string }) {
         </div>
 
         {/* Map */}
-        {renderMapCard(650)}
+        {renderMapCard(650, mapLayers)}
       </div>
     )
   }
 
-  // 4. SCENARIO SIMULATOR VIEW
+  // 3. SCENARIO SIMULATOR & DIGITAL TWIN VIEW (Combined)
   function renderScenarioSimulator() {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 16, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {renderSimulationSlidersCard()}
-          {renderCommandInputCard()}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Scenario Simulator Section ── */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Zap size={16} color="var(--color-blue-500)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Scenario Simulator</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '380px 1.2fr 1fr', gap: 16, alignItems: 'start' }}>
+            {/* Column 1: Controls */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {renderSimulationSlidersCard()}
+              {renderCommandInputCard()}
+            </div>
+
+            {/* Column 2: Price Projections & Refinery Impact */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {renderMonteCarloChartCard()}
+              {renderSimulatedRefineryDeficitChart()}
+            </div>
+
+            {/* Column 3: Economic Cost & Grid Stress */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {renderSimulatedEconomicCostChart()}
+              {renderGridStressCard()}
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {renderMonteCarloChartCard()}
-          {renderGridStressCard()}
+
+        {/* ── Section Divider ── */}
+        <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+
+        {/* ── Supply Chain Digital Twin Section ── */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Share2 size={16} color="var(--color-purple)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Supply Chain Digital Twin</span>
+          </div>
+          {renderSupplyChainDigitalTwin()}
         </div>
       </div>
     )
   }
 
-  // 5. PROCUREMENT OPTIMIZER VIEW
+  // Simulated Refinery Feedstock Deficit Chart
+  function renderSimulatedRefineryDeficitChart() {
+    const sikka = parseFloat((shortfallSlider * 0.45).toFixed(2))
+    const kochi = parseFloat((shortfallSlider * 0.35 + opecSlider * 0.15).toFixed(2))
+    const mangaluru = parseFloat((shortfallSlider * 0.2 + opecSlider * 0.08).toFixed(2))
+
+    const data = [
+      { name: 'Sikka Ref', Deficit: sikka, Normal: Math.max(0, 1.24 - sikka) },
+      { name: 'Kochi Ref', Deficit: kochi, Normal: Math.max(0, 0.31 - kochi) },
+      { name: 'Mangalore', Deficit: mangaluru, Normal: Math.max(0, 0.30 - mangaluru) }
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Activity size={15} color="var(--color-risk-critical)" />
+          <span className="section-title" style={{ fontSize: 11 }}>Simulated Refinery Feedstock Deficit (mbpd)</span>
+        </div>
+
+        <div style={{ height: 160 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis type="number" stroke="#475569" style={{ fontSize: 8.5 }} />
+              <YAxis dataKey="name" type="category" stroke="#475569" style={{ fontSize: 8.5 }} />
+              <Tooltip contentStyle={{ background: '#0d1421', border: '1px solid var(--color-border)', fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Bar dataKey="Deficit" stackId="a" fill="#ef4444" name="Supply Shortfall (Deficit)" />
+              <Bar dataKey="Normal" stackId="a" fill="#10b981" name="Active Run rate" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
+  // Simulated Economic Cost Impact Breakdown Chart
+  function renderSimulatedEconomicCostChart() {
+    const transitPremium = parseFloat((shortfallSlider * 1.85).toFixed(2)) // million USD
+    const pricePremium = parseFloat((opecSlider * (volatilitySlider / 18)).toFixed(2)) // million USD
+    const totalCost = parseFloat((transitPremium + pricePremium).toFixed(2))
+
+    const data = [
+      { name: 'Transit Premium', Cost: transitPremium, fill: '#f59e0b' },
+      { name: 'Crude Premium', Cost: pricePremium, fill: '#ef4444' }
+    ]
+
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TrendingUp size={15} color="var(--color-risk-critical)" />
+            <span className="section-title" style={{ fontSize: 11 }}>Simulated Economic Loss (Million USD/Day)</span>
+          </div>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 800, color: '#ef4444' }}>
+            ${totalCost}M/day
+          </span>
+        </div>
+
+        <div style={{ height: 160 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="name" stroke="#475569" style={{ fontSize: 8.5 }} />
+              <YAxis stroke="#475569" style={{ fontSize: 8.5 }} />
+              <Tooltip contentStyle={{ background: '#0d1421', border: '1px solid var(--color-border)', fontSize: 10 }} />
+              <Bar dataKey="Cost" radius={[3, 3, 0, 0]}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
+  // 4. PROCUREMENT & STRATEGIC RESERVES VIEW (Combined)
   function renderProcurementOptimizer() {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          {renderDetailedProcurementCard()}
-          {renderSupplierComplianceCard()}
-        </div>
-      </div>
-    )
-  }
-
-  // 6. STRATEGIC RESERVE VIEW
-  function renderStrategicReserve() {
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {renderSPRAffectionCard()}
-          {renderRefineryImpactSummaryCard()}
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Procurement Orchestrator Section ── */}
         <div>
-          {renderCavernsStatusCard()}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <ShoppingCart size={16} color="var(--color-blue-500)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Procurement Orchestrator</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+            {renderDetailedProcurementCard()}
+            {renderSupplierComplianceCard()}
+          </div>
+        </div>
+
+        {/* ── Section Divider ── */}
+        <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+
+        {/* ── Strategic Reserves Section ── */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Database size={16} color="var(--color-emerald)" />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Strategic Petroleum Reserves</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {renderSPRAffectionCard()}
+              {renderRefineryImpactSummaryCard()}
+            </div>
+            <div>
+              {renderCavernsStatusCard()}
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  // 7. SUPPLY CHAIN DIGITAL TWIN VIEW
+  // Keep standalone for dispatcher backward compat
+  function renderStrategicReserve() {
+    return renderProcurementOptimizer()
+  }
+
+  // 7. SUPPLY CHAIN DIGITAL TWIN VIEW — Comprehensive Interactive Overhaul
   function renderSupplyChainDigitalTwin() {
+    const TWIN_NODES: Record<string, {
+      id: string; label: string; sublabel: string; cx: number; cy: number; r: number;
+      type: 'supplier' | 'chokepoint' | 'port' | 'refinery' | 'storage';
+      baseStatus: 'ok' | 'warn' | 'risk' | 'block';
+      downstreamOf?: string[];
+      specs: { label: string; value: string }[];
+      canDisrupt: boolean;
+    }> = {
+      rasTanura:   { id: 'rasTanura',   label: 'Ras Tanura (KSA)', sublabel: 'SUPPLIER', cx: 80,  cy: 110, r: 22, type: 'supplier',    baseStatus: 'risk',  specs: [{ label: 'Daily Output', value: '6.4 mbpd' }, { label: 'Export Share', value: '18.2% India' }, { label: 'Last Inspection', value: 'May 2026' }, { label: 'Risk Factor', value: 'Geopolitical' }], canDisrupt: true },
+      yanbu:       { id: 'yanbu',       label: 'Yanbu Terminal',   sublabel: 'SUPPLIER', cx: 80,  cy: 330, r: 20, type: 'supplier',    baseStatus: 'ok',    specs: [{ label: 'Daily Output', value: '1.2 mbpd' }, { label: 'Export Share', value: 'Bypass route' }, { label: 'Pipe Status', value: 'East-West active' }, { label: 'Risk Factor', value: 'Low' }], canDisrupt: true },
+      hormuz:      { id: 'hormuz',      label: 'Strait of Hormuz', sublabel: 'CHOKEPOINT', cx: 250, cy: 110, r: 24, type: 'chokepoint', baseStatus: 'block', downstreamOf: ['rasTanura'], specs: [{ label: 'Daily Transit', value: '21 mbpd' }, { label: 'Corridor Width', value: '3.2 km nav. lane' }, { label: 'Current Status', value: '↑ Tension — Patrol' }, { label: 'Alt. Route', value: 'Yanbu pipeline' }], canDisrupt: true },
+      mandeb:      { id: 'mandeb',      label: 'Bab-el-Mandeb',   sublabel: 'CHOKEPOINT', cx: 250, cy: 250, r: 20, type: 'chokepoint', baseStatus: 'warn',  downstreamOf: ['yanbu'], specs: [{ label: 'Daily Transit', value: '5.8 mbpd' }, { label: 'Status', value: 'Houthi threat active' }, { label: 'Diversions', value: '17 VLCCs/week' }, { label: 'Alt. Route', value: 'Cape of Good Hope' }], canDisrupt: true },
+      sikka:       { id: 'sikka',       label: 'Sikka Port',       sublabel: 'PORT — HUB', cx: 450, cy: 220, r: 26, type: 'port',       baseStatus: 'ok',    downstreamOf: ['hormuz', 'mandeb'], specs: [{ label: 'Throughput', value: '95 MT/yr' }, { label: 'Capacity', value: '120 MT/yr' }, { label: 'Berths Active', value: '12 / 14' }, { label: 'Queue Vessels', value: '4 VLCCs' }], canDisrupt: false },
+      jamnagar:    { id: 'jamnagar',    label: 'Jamnagar Refinery', sublabel: 'REFINERY', cx: 640, cy: 110, r: 22, type: 'refinery',   baseStatus: 'ok',    downstreamOf: ['sikka'], specs: [{ label: 'Run Rate', value: '98% utilisation' }, { label: 'Capacity', value: '1.24 mbpd' }, { label: 'Feedstock Days', value: '18 days buffer' }, { label: 'Operator', value: 'Reliance Ind.' }], canDisrupt: false },
+      padur:       { id: 'padur',       label: 'Padur SPR Cavern', sublabel: 'STORAGE', cx: 640, cy: 340, r: 20, type: 'storage',    baseStatus: 'ok',    downstreamOf: ['sikka'], specs: [{ label: 'Fill Level', value: '72% (11.83 MMT)' }, { label: 'Drawdown Rate', value: '1.5 MT/day max' }, { label: 'Days Cover', value: '34 days' }, { label: 'Authority', value: 'ISPRL / MoPNG' }], canDisrupt: false },
+    }
+
+    const EDGES = [
+      { from: 'rasTanura', to: 'hormuz' },
+      { from: 'yanbu',     to: 'mandeb' },
+      { from: 'hormuz',    to: 'sikka'  },
+      { from: 'mandeb',    to: 'sikka'  },
+      { from: 'sikka',     to: 'jamnagar' },
+      { from: 'sikka',     to: 'padur' },
+    ]
+
+    function getNodeStatus(nodeId: string): 'ok' | 'warn' | 'risk' | 'block' {
+      if (disruptedTwinNodes.has(nodeId)) return 'block'
+      const node = TWIN_NODES[nodeId]
+      if (node.downstreamOf?.some(parentId => disruptedTwinNodes.has(parentId))) return 'risk'
+      return node.baseStatus
+    }
+
+    const STATUS_COLORS = { ok: '#10b981', warn: '#f59e0b', risk: '#ef4444', block: '#dc2626' }
+    const STATUS_LABELS = { ok: 'NORMAL', warn: 'WARN', risk: 'DISRUPTED', block: 'BLOCKED' }
+
+    function toggleDisruption(nodeId: string) {
+      setDisruptedTwinNodes(prev => {
+        const next = new Set(prev)
+        next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId)
+        return next
+      })
+    }
+
+    const selected = selectedTwinNode ? TWIN_NODES[selectedTwinNode] : null
+    const selectedStatus = selectedTwinNode ? getNodeStatus(selectedTwinNode) : 'ok'
+
+    const disrupted = [...disruptedTwinNodes].length
+    const atRisk = Object.keys(TWIN_NODES).filter(id => getNodeStatus(id) === 'risk').length
+    const healthy = Object.keys(TWIN_NODES).length - disrupted - atRisk
+    const networkHealth = Math.round((healthy / Object.keys(TWIN_NODES).length) * 100)
+
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)' }}>
-        {/* Graph Area */}
-        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden' }}>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>SUPPLY CHAIN DIGITAL TWIN SCHEMATIC</span>
-          
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="100%" height="100%" viewBox="0 0 800 450" style={{ maxWidth: '100%', maxHeight: '100%' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 310px', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)' }}>
+
+        {/* ── Main SVG Graph ── */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>SUPPLY CHAIN DIGITAL TWIN — INTERACTIVE NODE MAP</span>
+            <div style={{ display: 'flex', gap: 12, fontSize: 9.5, color: 'var(--color-text-muted)' }}>
+              {(['ok','warn','risk','block'] as const).map(s => (
+                <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[s] }} />
+                  <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>{s}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, position: 'relative' }}>
+            <svg width="100%" height="100%" viewBox="0 0 760 430" style={{ overflow: 'visible' }}>
               <defs>
-                <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
-                </marker>
-                <marker id="arrow-risk" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
-                </marker>
+                {(['ok','warn','risk','block'] as const).map(s => (
+                  <marker key={s} id={`arrow-${s}`} viewBox="0 0 10 10" refX="20" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill={STATUS_COLORS[s]} />
+                  </marker>
+                ))}
               </defs>
 
-              {/* Connections */}
-              <line x1="100" y1="120" x2="250" y2="120" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="5,5" markerEnd="url(#arrow-risk)" />
-              <line x1="100" y1="320" x2="250" y2="220" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
-              <line x1="250" y1="120" x2="450" y2="220" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="5,5" markerEnd="url(#arrow-risk)" />
-              <line x1="250" y1="220" x2="450" y2="220" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
-              <line x1="450" y1="220" x2="650" y2="120" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
-              <line x1="450" y1="220" x2="650" y2="320" stroke="#10b981" strokeWidth="2" markerEnd="url(#arrow)" />
+              {/* ── Edges ── */}
+              {EDGES.map((edge, i) => {
+                const from = TWIN_NODES[edge.from]
+                const to   = TWIN_NODES[edge.to]
+                const fromStatus = getNodeStatus(edge.from)
+                const toStatus   = getNodeStatus(edge.to)
+                const status = (fromStatus === 'block' || toStatus === 'block') ? 'block'
+                             : (fromStatus === 'risk'  || toStatus === 'risk')  ? 'risk'
+                             : (fromStatus === 'warn'  || toStatus === 'warn')  ? 'warn' : 'ok'
+                const col = STATUS_COLORS[status]
+                return (
+                  <line key={i}
+                    x1={from.cx} y1={from.cy} x2={to.cx} y2={to.cy}
+                    stroke={col}
+                    strokeWidth={status === 'block' ? 2.5 : 1.8}
+                    strokeDasharray={status === 'block' ? '6,4' : status === 'risk' ? '4,3' : '0'}
+                    strokeOpacity={0.7}
+                    markerEnd={`url(#arrow-${status})`}
+                  />
+                )
+              })}
 
-              {/* Pulsing flow indicator */}
-              <circle r="4" fill="#ef4444">
-                <animateMotion dur="4s" repeatCount="indefinite" path="M 100 120 L 250 120" />
-              </circle>
-              <circle r="4" fill="#10b981">
-                <animateMotion dur="6s" repeatCount="indefinite" path="M 100 320 L 250 220" />
-              </circle>
+              {/* ── Animated flow dots (only on healthy edges) ── */}
+              {EDGES.filter(e => getNodeStatus(e.from) === 'ok' && getNodeStatus(e.to) === 'ok').map((edge, i) => {
+                const from = TWIN_NODES[edge.from]
+                const to   = TWIN_NODES[edge.to]
+                return (
+                  <circle key={`dot-${i}`} r="3.5" fill="#10b981" opacity="0.9">
+                    <animateMotion dur={`${4 + i * 1.2}s`} repeatCount="indefinite"
+                      path={`M ${from.cx} ${from.cy} L ${to.cx} ${to.cy}`} />
+                  </circle>
+                )
+              })}
 
-              {/* Node 1: Ras Tanura */}
-              <g transform="translate(100, 120)" cursor="pointer">
-                <circle r="20" fill="rgba(239, 68, 68, 0.1)" stroke="#ef4444" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Ras Tanura (KSA)</text>
-                <text fill="#ef4444" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">RISK</text>
-              </g>
+              {/* ── Nodes ── */}
+              {Object.values(TWIN_NODES).map(node => {
+                const status = getNodeStatus(node.id)
+                const col = STATUS_COLORS[status]
+                const isSelected = selectedTwinNode === node.id
 
-              {/* Node 2: Yanbu Bypass */}
-              <g transform="translate(100, 320)" cursor="pointer">
-                <circle r="20" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Yanbu Terminal</text>
-                <text fill="#10b981" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">OK</text>
-              </g>
+                return (
+                  <g key={node.id} transform={`translate(${node.cx}, ${node.cy})`}
+                    cursor="pointer"
+                    onClick={() => setSelectedTwinNode(isSelected ? null : node.id)}
+                  >
+                    {/* Outer selection ring */}
+                    {isSelected && (
+                      <circle r={node.r + 9} fill="none" stroke={col} strokeWidth="1.5" opacity="0.6" strokeDasharray="4,3">
+                        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="8s" repeatCount="indefinite" />
+                      </circle>
+                    )}
 
-              {/* Node 3: Strait of Hormuz */}
-              <g transform="translate(250, 120)" cursor="pointer">
-                <circle r="22" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Strait of Hormuz</text>
-                <text fill="#ef4444" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">BLOCK</text>
-              </g>
+                    {/* Glow aura on risk/block */}
+                    {(status === 'block' || status === 'risk') && (
+                      <circle r={node.r + 5} fill={col} opacity="0.08" />
+                    )}
 
-              {/* Node 4: Bab-el-Mandeb */}
-              <g transform="translate(250, 220)" cursor="pointer">
-                <circle r="20" fill="rgba(245, 158, 11, 0.1)" stroke="#f59e0b" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Bab-el-Mandeb</text>
-                <text fill="#f59e0b" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">WARN</text>
-              </g>
+                    {/* Node body */}
+                    <circle r={node.r} fill={`${col}18`} stroke={col}
+                      strokeWidth={isSelected ? 2.5 : 1.8} />
 
-              {/* Node 5: Sikka Port */}
-              <g transform="translate(450, 220)" cursor="pointer">
-                <circle r="24" fill="rgba(37, 99, 235, 0.1)" stroke="#3b82f6" strokeWidth="2" />
-                <text y="38" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Sikka Port (India)</text>
-                <text fill="#3b82f6" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">HUB</text>
-              </g>
+                    {/* Type icon text */}
+                    <text textAnchor="middle" dominantBaseline="middle" fill={col}
+                      fontSize={status === 'block' ? 8 : 7.5} fontWeight="800" y={-2}>
+                      {STATUS_LABELS[status]}
+                    </text>
 
-              {/* Node 6: Jamnagar Refinery */}
-              <g transform="translate(650, 120)" cursor="pointer">
-                <circle r="20" fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Jamnagar Refinery</text>
-                <text fill="#10b981" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">98%</text>
-              </g>
-
-              {/* Node 7: Padur Cavern */}
-              <g transform="translate(650, 320)" cursor="pointer">
-                <circle r="20" fill="rgba(37, 99, 235, 0.1)" stroke="#3b82f6" strokeWidth="2" />
-                <text y="35" textAnchor="middle" fill="var(--color-text-primary)" fontSize="10" fontWeight="600">Padur SPR</text>
-                <text fill="#3b82f6" fontSize="8" y="2" textAnchor="middle" fontWeight="bold">72%</text>
-              </g>
+                    {/* Node label below */}
+                    <text y={node.r + 12} textAnchor="middle" fill="var(--color-text-primary)" fontSize="9" fontWeight="600">
+                      {node.label}
+                    </text>
+                    <text y={node.r + 22} textAnchor="middle" fill="var(--color-text-muted)" fontSize="7.5">
+                      {node.sublabel}
+                    </text>
+                  </g>
+                )
+              })}
             </svg>
+          </div>
+
+          {/* Bottom legend bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: 8 }}>
+            <Info size={10} />
+            <span>Click any node to inspect live specs. Use <strong style={{ color: 'var(--color-text-secondary)' }}>Trigger Blockade</strong> in the inspector to simulate disruptions.</span>
           </div>
         </div>
 
-        {/* Network Metrics sidebar */}
+        {/* ── Right Sidebar ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>NETWORK HEALTH INDEX</span>
-            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-risk-moderate)' }}>86%</div>
-            <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>2 bottlenecks detected on active corridors.</div>
+
+          {/* Network Health */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 9.5, color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Network Health Index</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span className="mono" style={{ fontSize: 32, fontWeight: 800, color: networkHealth > 70 ? '#10b981' : networkHealth > 45 ? '#f59e0b' : '#ef4444' }}>
+                {networkHealth}%
+              </span>
+              <span style={{ fontSize: 9.5, color: 'var(--color-text-muted)' }}>chain integrity</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, fontSize: 9.5 }}>
+              <span style={{ color: '#10b981' }}>✓ {healthy} Normal</span>
+              <span style={{ color: '#f59e0b' }}>⚠ {atRisk} At Risk</span>
+              <span style={{ color: '#ef4444' }}>✕ {disrupted} Blocked</span>
+            </div>
+            {disruptedTwinNodes.size > 0 && (
+              <button onClick={() => setDisruptedTwinNodes(new Set(['hormuz']))}
+                style={{ marginTop: 4, padding: '4px 10px', fontSize: 9.5, background: 'rgba(16,185,129,0.1)', border: '1px solid #10b981', color: '#10b981', borderRadius: 5, cursor: 'pointer', fontWeight: 700 }}>
+                ↺ Reset to Baseline
+              </button>
+            )}
           </div>
 
-          <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>NETWORK STATUS COUNTS</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Operational Nodes:</span>
-                <span className="mono" style={{ color: '#10b981', fontWeight: 700 }}>132</span>
+          {/* Node Inspector Panel */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+            {selected ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 9.5, color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Node Inspector</span>
+                  <button onClick={() => setSelectedTwinNode(null)}
+                    style={{ fontSize: 9, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Close</button>
+                </div>
+
+                <div style={{ borderLeft: `3px solid ${STATUS_COLORS[selectedStatus]}`, paddingLeft: 10 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--color-text-primary)' }}>{selected.label}</div>
+                  <div style={{ fontSize: 9.5, color: 'var(--color-text-muted)', marginTop: 2 }}>{selected.sublabel}</div>
+                  <div style={{ marginTop: 4, display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+                    background: `${STATUS_COLORS[selectedStatus]}22`, color: STATUS_COLORS[selectedStatus],
+                    fontSize: 9, fontWeight: 800 }}>
+                    {STATUS_LABELS[selectedStatus]}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: 10.5 }}>
+                  {selected.specs.map((spec, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '5px 8px', background: 'var(--color-bg-primary)', borderRadius: 5 }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: 9.5 }}>{spec.label}</span>
+                      <span className="mono" style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: 10 }}>{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {selected.canDisrupt && (
+                  <button
+                    onClick={() => toggleDisruption(selected.id)}
+                    style={{
+                      marginTop: 6, padding: '7px 12px', fontSize: 10, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+                      border: `1px solid ${disruptedTwinNodes.has(selected.id) ? '#10b981' : '#ef4444'}`,
+                      background: disruptedTwinNodes.has(selected.id) ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                      color: disruptedTwinNodes.has(selected.id) ? '#10b981' : '#ef4444',
+                    }}>
+                    {disruptedTwinNodes.has(selected.id) ? '✓ Restore Node — Clear Blockade' : '⚡ Simulate Blockade at This Node'}
+                  </button>
+                )}
+
+                {selected.downstreamOf && selected.downstreamOf.length > 0 && (
+                  <div style={{ marginTop: 4, fontSize: 9, color: 'var(--color-text-muted)' }}>
+                    <span style={{ fontWeight: 700 }}>Cascade from: </span>
+                    {selected.downstreamOf.map(id => TWIN_NODES[id]?.label).join(', ')}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 10, color: 'var(--color-text-muted)', textAlign: 'center', padding: 20 }}>
+                <Cpu size={28} color="var(--color-text-muted)" opacity={0.4} />
+                <span style={{ fontSize: 10.5, lineHeight: 1.5 }}>Click any node on the schematic to inspect live specifications and simulate disruptions.</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>At Risk Nodes:</span>
-                <span className="mono" style={{ color: '#f59e0b', fontWeight: 700 }}>18</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Disrupted Nodes:</span>
-                <span className="mono" style={{ color: '#ef4444', fontWeight: 700 }}>4</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -945,7 +1362,7 @@ export default function CommandCenter({ view }: { view?: string }) {
               <strong>Geopolitical Risk Alert:</strong> Geopolitical tensions in the Bab-el-Mandeb and Hormuz corridors remain critical. Daily vessel diversions are adding +2.3 days to average Sikka Port delivery schedules.
             </div>
             <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #f59e0b' }}>
-              <strong>Market Volatility:</strong> Brent crude prices are highly volatile with a current daily range of $81.50 - $84.20. Volatility index has risen by 15% WoW.
+              <strong>Market Volatility:</strong> Brent crude prices are highly volatile with a current daily range of USD 81.50&ndash;84.20. Volatility index has risen by 15% WoW.
             </div>
             <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #3b82f6' }}>
               <strong>SPR Advisory:</strong> Current strategic caverns are filled to 78% capacity. Drawdown authorizations remain on standby under the MoPNG 2026 mandate guidelines.
@@ -1167,69 +1584,150 @@ export default function CommandCenter({ view }: { view?: string }) {
 
     const agents = [
       {
-        name: "Geopolitical Risk Intel Agent",
+        name: "Geopolitical Risk Intel",
         status: hasActiveThreat ? "ACTIVE // Bayesian Net" : "MONITORING",
-        desc: `Evaluated ${overallRisk}% corridor disruption probability score for India West Coast Sikka terminals.`
+        desc: `Evaluated ${overallRisk}% corridor disruption probability score for Sikka.`
       },
       {
         name: "Disruption Scenario Modeller",
-        status: hasActiveThreat ? "ACTIVE // Monte Carlo GBM" : "STANDBY",
-        desc: `Simulated 10,000 price paths. Brent: $${brent.toFixed(2)}/bbl. Surcharges: +₹8.40/L. Power loss: 3,200 MW.`
+        status: hasActiveThreat ? "ACTIVE // Monte Carlo" : "STANDBY",
+        desc: `Simulated 10k price paths. Brent: $${brent.toFixed(2)}/bbl. Surcharges: +₹8.40/L.`
       },
       {
-        name: "Adaptive Procurement Orchestrator",
-        status: hasActiveThreat ? "ACTIVE // SciPy Linear Program" : "STANDBY",
-        desc: `Solved multi-objective optimization: Moscow Baltic Urals rerouting approved to bypass disrupted chokepoint.`
+        name: "Adaptive Procurement",
+        status: hasActiveThreat ? "ACTIVE // SciPy LP" : "STANDBY",
+        desc: `Solved LP: Moscow Baltic Urals rerouting approved to bypass disruption.`
       },
       {
-        name: "Strategic Petroleum Reserve Advisor",
-        status: hasActiveThreat ? "ACTIVE // Cavern Demand Model" : "STANDBY",
-        desc: "Allocated 34 days covers. Drawdown: 1.15 MBD. Caverns: Padur (72%), Mangaluru (45%), Visakhapatnam (90%)."
+        name: "Strategic Reserve Advisor",
+        status: hasActiveThreat ? "ACTIVE // Cavern Model" : "STANDBY",
+        desc: "Allocated 34 days covers. Drawdown: 1.15 MBD. Padur fill: 72%."
       },
       {
         name: "Executive Briefing Agent",
-        status: hasActiveThreat ? "ACTIVE // LLM RAG Grounded" : "STANDBY",
-        desc: "Synthesized Secretariat policy directives & Abqaiq historical crisis anchors into Cabinet briefing brief."
+        status: hasActiveThreat ? "ACTIVE // LLM RAG" : "STANDBY",
+        desc: "Synthesized policy directives & Abqaiq history into Cabinet brief."
       }
     ]
 
     return (
-      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Cpu size={14} color="var(--color-purple)" />
-          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>COGNITIVE AGENT CONSOLE STATUS</span>
+      <div className="glass-card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Cpu size={14} color="var(--color-purple)" />
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>COGNITIVE AGENT CONSOLE STATUS</span>
+          </div>
+          <span style={{ fontSize: 9, color: 'var(--color-text-muted)' }}>5 Agent Instances Online</span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {agents.map((agent, idx) => (
-            <div key={idx} style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              paddingBottom: idx < agents.length - 1 ? 10 : 0,
-              borderBottom: idx < agents.length - 1 ? '1px solid var(--color-border)' : 'none'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>{agent.name}</span>
-                <span className="mono animate-pulse" style={{ fontSize: 9, fontWeight: 700, color: hasActiveThreat ? 'var(--color-risk-low)' : 'var(--color-text-muted)' }}>
-                  {agent.status}
-                </span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+          {agents.map((agent, idx) => {
+            const isStandby = agent.status === "STANDBY" || agent.status === "MONITORING"
+            return (
+              <div key={idx} style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                padding: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 6
+              }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>{agent.name}</span>
+                  </div>
+                  <p style={{ fontSize: 9, color: 'var(--color-text-secondary)', lineHeight: 1.25, marginTop: 4 }}>{agent.desc}</p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ 
+                      fontSize: 8, 
+                      fontWeight: 700, 
+                      color: isStandby ? 'var(--color-text-muted)' : 'var(--color-risk-low)',
+                      background: isStandby ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 185, 129, 0.1)',
+                      padding: '2px 4px',
+                      borderRadius: 3,
+                      display: 'inline-block'
+                    }}>
+                      {agent.status.split(' // ')[0]}
+                    </span>
+                    <span style={{ fontSize: 7.5, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                      {agent.status.split(' // ')[1]}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>{agent.desc}</p>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // Live System Terminal Card
+  function renderLiveTerminalLogsCard() {
+    return (
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Terminal size={14} color="#10b981" />
+            <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>
+              AUTONOMOUS SYSTEM TERMINAL (LIVE WS STREAM)
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button 
+              onClick={() => setSystemLogs([])}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-muted)',
+                fontSize: 9,
+                cursor: 'pointer',
+                padding: '2px 6px',
+                borderRadius: 4,
+                border: '1px solid var(--color-border)'
+              }}
+            >
+              Clear
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#10b981', fontWeight: 700 }}>
+              <span style={{ width: 6, height: 6, background: '#10b981', borderRadius: '50%' }} className="animate-pulse" />
+              LIVE
             </div>
-          ))}
+          </div>
         </div>
 
         <div style={{
-          background: 'rgba(124, 58, 237, 0.05)',
-          padding: '8px 10px',
+          background: '#040811',
+          border: '1px solid var(--color-border)',
           borderRadius: 6,
-          border: '1px solid rgba(124, 58, 237, 0.15)',
-          fontSize: 9,
-          color: 'var(--color-purple)',
-          lineHeight: 1.3
+          padding: 12,
+          height: 180,
+          overflowY: 'auto',
+          fontFamily: 'monospace',
+          fontSize: 9.5,
+          color: '#34d399',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.8)'
         }}>
-          💡 <strong>Hackathon Tip:</strong> Use the <strong>Scenario Simulator</strong> in the sidebar to run custom threat scenarios and watch these agents coordinate calculations live!
+          {systemLogs.length > 0 ? (
+            systemLogs.map((log, idx) => (
+              <div key={idx} style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                <span style={{ color: '#64748b', marginRight: 6 }}>&gt;</span>
+                {log}
+              </div>
+            ))
+          ) : (
+            <div style={{ color: '#475569', fontStyle: 'italic' }}>
+              Listening for pipeline logs... (System is monitoring news and live AIS corridor vessels)
+            </div>
+          )}
+          <div ref={terminalEndRef} />
         </div>
       </div>
     )
@@ -1273,7 +1771,7 @@ export default function CommandCenter({ view }: { view?: string }) {
   }
 
   // Map Card
-  function renderMapCard(height = 580) {
+  function renderMapCard(height = 580, layers?: Record<string, boolean>) {
     const vesselsCount = mapData?.vessels?.length ?? 45
     return (
       <div className="glass-card" style={{ height: `${height}px`, overflow: 'hidden', position: 'relative' }}>
@@ -1300,7 +1798,7 @@ export default function CommandCenter({ view }: { view?: string }) {
         {mapLoading ? (
           <div className="skeleton" style={{ height: '100%' }} />
         ) : (
-          <GlobalMap key="full-map" mapData={mapData} />
+          <GlobalMap key="full-map" mapData={mapData} layers={layers} />
         )}
       </div>
     )
@@ -1390,34 +1888,34 @@ export default function CommandCenter({ view }: { view?: string }) {
               padding: 12,
               background: 'rgba(239, 68, 68, 0.04)',
               borderRadius: 8,
-              border: '1px solid rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
               display: 'flex',
               flexDirection: 'column',
               gap: 6
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#f87171' }}>{risk.event_type}</span>
-                <span style={{ fontSize: 10, color: '#94a3b8' }}>{risk.timestamp.slice(11, 16)} UTC</span>
+                <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{risk.timestamp.slice(11, 16)} UTC</span>
               </div>
-              <p style={{ fontSize: 11, color: '#e2e8f0', lineHeight: 1.4 }}>{risk.event_summary}</p>
+              <p style={{ fontSize: 11, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{risk.event_summary}</p>
               
-              <div style={{ display: 'flex', gap: 12, fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4 }}>
                 <span>Disruption Prob: <strong style={{ color: '#ef4444' }}>{risk.disruption_probability}%</strong></span>
-                <span>Shortfall Est: <strong>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
+                <span>Shortfall Est: <strong style={{ color: 'var(--color-text-primary)' }}>{risk.estimated_supply_impact_mbpd} mbpd</strong></span>
               </div>
               
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                {risk.affected_chokepoints.map((cp: string) => (
+                {(risk.affected_chokepoints || []).map((cp: string) => (
                   <span key={cp} style={{ padding: '2px 6px', background: 'rgba(239, 68, 68, 0.12)', borderRadius: 4, fontSize: 9, color: '#f87171' }}>{cp}</span>
                 ))}
-                {risk.affected_countries.map((c: string) => (
+                {(risk.affected_countries || []).map((c: string) => (
                   <span key={c} style={{ padding: '2px 6px', background: 'rgba(59, 130, 246, 0.12)', borderRadius: 4, fontSize: 9, color: '#60a5fa' }}>{c}</span>
                 ))}
               </div>
             </div>
           ))}
           {!dashboard?.top_risks?.length && (
-            <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
+            <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)' }}>
               No active threat corridors detected. Shipping routes clear.
             </div>
           )}
@@ -1430,23 +1928,23 @@ export default function CommandCenter({ view }: { view?: string }) {
   function renderBayesianProbCard() {
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>BAYESIAN RISK DISTRIBUTION</span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
-            <span>Prior Disruption Prob:</span>
-            <span className="mono">15.0%</span>
+        <span style={{ fontSize: 10, color: 'var(--color-text-primary)', fontWeight: 700, letterSpacing: '0.5px' }}>BAYESIAN RISK DISTRIBUTION</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: 'var(--color-text-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Prior Disruption Prob:</span>
+            <span className="mono" style={{ fontWeight: 600 }}>15.0%</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
-            <span>AIS Correlated Vessel Anomaly:</span>
-            <span className="mono" style={{ color: '#ef4444' }}>+24.5%</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>AIS Correlated Vessel Anomaly:</span>
+            <span className="mono" style={{ color: '#ef4444', fontWeight: 700 }}>+24.5%</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
-            <span>Policy Keyword Weight multiplier:</span>
-            <span className="mono" style={{ color: '#f59e0b' }}>1.32x</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Policy Keyword Weight multiplier:</span>
+            <span className="mono" style={{ color: '#f59e0b', fontWeight: 700 }}>1.32x</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, paddingTop: 4 }}>
             <span>Posterior Bayesian Score:</span>
-            <span className="mono" style={{ color: '#ef4444' }}>{dashboard?.overall_risk_score ?? 21.5}%</span>
+            <span className="mono" style={{ color: '#ef4444', fontSize: 13 }}>{dashboard?.overall_risk_score ?? 21.5}%</span>
           </div>
         </div>
       </div>
@@ -1998,17 +2496,65 @@ export default function CommandCenter({ view }: { view?: string }) {
     )
   }
 
-  // 2. RISK INTELLIGENCE VIEW
+  // 2. RISK & GEOSPATIAL INTELLIGENCE VIEW (Consolidated Pages 2, 3, 9)
   function renderRiskIntelligence() {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {renderDetailedRiskFeedCard()}
-          {renderBriefingCard(true)}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
+        {/* Left Side: Controls, Alerts & Risk Feeds */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', paddingRight: 4 }}>
+          {/* Map Layer checklist */}
+          <div className="glass-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.5px' }}>MAP LAYERS</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 10.5, color: 'var(--color-text-secondary)' }}>
+              {([
+                { id: 'routes',      label: 'Trade Routes',        color: '#3b82f6' },
+                { id: 'ports',       label: 'Ports & Terminals',   color: '#10b981' },
+                { id: 'incidents',   label: 'Incidents & Alerts',  color: '#ef4444' },
+                { id: 'chokepoints', label: 'Chokepoint Overlays', color: '#ef4444' },
+                { id: 'suppliers',   label: 'Supplier Hubs',       color: '#f59e0b' },
+                { id: 'storage',     label: 'Storage Facilities',  color: '#eab308' },
+                { id: 'weather',     label: 'Weather & Cyclones',  color: '#6366f1' }
+              ] as const).map(layer => (
+                <label key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={mapLayers[layer.id]}
+                    onChange={() => toggleMapLayer(layer.id)}
+                    style={{ cursor: 'pointer', accentColor: layer.color }}
+                  />
+                  <span style={{ color: mapLayers[layer.id] ? 'var(--color-text-primary)' : 'var(--color-text-muted)', transition: 'color 0.2s' }}>
+                    {layer.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Compact Alerts Severity Count Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { label: 'CRITICAL', count: 12, color: 'var(--color-risk-critical)', bg: 'rgba(239, 68, 68, 0.08)' },
+              { label: 'HIGH', count: 26, color: 'var(--color-risk-high)', bg: 'rgba(249, 115, 22, 0.08)' },
+              { label: 'MEDIUM', count: 18, color: 'var(--color-risk-moderate)', bg: 'rgba(245, 158, 11, 0.08)' },
+              { label: 'LOW', count: 9, color: 'var(--color-risk-low)', bg: 'rgba(16, 185, 129, 0.08)' }
+            ].map((sev, idx) => (
+              <div key={idx} style={{ background: sev.bg, border: `1px solid ${sev.color}`, borderRadius: 6, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: sev.color, letterSpacing: '0.5px' }}>{sev.label}</span>
+                <span className="mono" style={{ fontSize: 16, fontWeight: 800, color: sev.color }}>{sev.count}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Bayesian Risk Card */}
           {renderBayesianProbCard()}
-          {renderAIAgentConsoleCard()}
+
+          {/* Live Risk Feed Card */}
+          {renderDetailedRiskFeedCard()}
+        </div>
+
+        {/* Right Side: Map (Central Focus) */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {renderMapCard(680, mapLayers)}
         </div>
       </div>
     )
@@ -2020,34 +2566,82 @@ export default function CommandCenter({ view }: { view?: string }) {
     switch (active) {
       case 'risk-intelligence':
       case '#risk-intelligence':
-        return renderRiskIntelligence()
       case 'geospatial-map':
       case '#geospatial-map':
-        return renderGeospatialMap()
+      case 'alerts-signal-center':
+      case '#alerts-signal-center':
+        return renderRiskIntelligence()
       case 'scenario-simulator':
       case '#scenario-simulator':
-        return renderScenarioSimulator()
-      case 'procurement-orchestrator':
-      case '#procurement-orchestrator':
-        return renderProcurementOptimizer()
-      case 'strategic-reserves':
-      case '#strategic-reserves':
-        return renderStrategicReserve()
       case 'supply-chain-digital-twin':
       case '#supply-chain-digital-twin':
-        return renderSupplyChainDigitalTwin()
+        return <NationalEnergyTwin />
+      case 'procurement-orchestrator':
+      case '#procurement-orchestrator':
+      case 'strategic-reserves':
+      case '#strategic-reserves':
+        return renderProcurementOptimizer()
       case 'reports-insights':
       case '#reports-insights':
         return renderReportsInsights()
-      case 'alerts-signal-center':
-      case '#alerts-signal-center':
-        return renderAlertsSignalCenter()
       case 'settings':
       case '#settings':
         return renderSettingsView()
       default:
         return renderOverview()
     }
+  }
+
+  const active = view || currentHash
+  const isFullscreenView = active === 'scenario-simulator' || active === '#scenario-simulator' ||
+    active === 'supply-chain-digital-twin' || active === '#supply-chain-digital-twin'
+
+  if (isFullscreenView) {
+    return (
+      <>
+        <NationalEnergyTwin />
+        {/* Real-time Toast Notifications */}
+        {toastAlerts.length > 0 && (
+          <div style={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            zIndex: 5000,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            pointerEvents: 'none'
+          }}>
+            {toastAlerts.map((alert, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                style={{
+                  padding: '12px 16px',
+                  background: 'rgba(13, 20, 33, 0.95)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.2)',
+                  color: '#fff',
+                  fontSize: 11,
+                  minWidth: 280,
+                  maxWidth: 360,
+                  backdropFilter: 'blur(8px)',
+                  pointerEvents: 'auto'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 800, color: '#ef4444' }}>⚠️ LIVE SIGNAL ALERT</span>
+                  <span style={{ fontSize: 9, color: '#94a3b8' }}>{alert.source || "STREAM"}</span>
+                </div>
+                <div>{alert.description || alert.title || alert.message || "Threat corridor anomaly flagged."}</div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </>
+    )
   }
 
   return (
