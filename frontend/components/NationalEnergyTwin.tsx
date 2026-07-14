@@ -457,6 +457,28 @@ export default function NationalEnergyTwin() {
 
   const { scale, tx, ty } = ZOOM_CONFIGS[zoomLevel]
   const svgTransform = `scale(${scale}) translate(${tx / scale},${ty / scale})`
+
+  // Zoom-aware font sizes and bar dimensions to prevent giant cluttered text at 6.0x port zoom
+  const nameFz = scale > 4 ? 4.0 : (scale > 2.5 ? 5.5 : 7.5)
+  const detailFz = scale > 4 ? 3.3 : (scale > 2.5 ? 4.8 : 6.5)
+  const subFz = scale > 4 ? 2.8 : (scale > 2.5 ? 4.2 : 6.0)
+  const barW = scale > 4 ? 14 : (scale > 2.5 ? 20 : 26)
+  const barH = scale > 4 ? 1.2 : (scale > 2.5 ? 1.8 : 2.5)
+
+  // Zoom-aware vertical line spacing offsets
+  const portYName = scale > 4 ? -4.5 : -5
+  const portYDetail = scale > 4 ? 1.5 : 4
+  const portYBar = scale > 4 ? 3.5 : 7
+  const portYWaiting = scale > 4 ? 8.5 : 16
+
+  const refYName = scale > 4 ? -5.5 : -8
+  const refYRR = scale > 4 ? 0.5 : 1
+  const refYThroughput = scale > 4 ? 6.5 : 10
+
+  const sprYName = scale > 4 ? -4.5 : -4
+  const sprYFill = scale > 4 ? 1.5 : 5
+  const sprYRelease = scale > 4 ? 7.5 : 14
+
   const scenario = SCENARIOS[activeEvent]
 
   const routeColor = (rid: RouteId): string => {
@@ -841,6 +863,12 @@ export default function NationalEnergyTwin() {
                 const isCritical = p.inventory < 40
                 const isLow = p.inventory < 65
                 const color = isCritical ? C.danger : isLow ? C.warning : C.primary
+
+                // Alternating layout side based on ID to avoid overlaps with close neighbors
+                const isLeft = p.id === 'sikka' || p.id === 'kochi'
+                const xOff = isLeft ? -9 : 9
+                const anchor = isLeft ? 'end' : 'start'
+
                 return (
                   <g key={p.id} transform={`translate(${p.x},${p.y})`}>
                     <circle r="13" fill="none" stroke={color} strokeWidth="0.8" opacity="0.2" className="pulse-ring"/>
@@ -849,22 +877,22 @@ export default function NationalEnergyTwin() {
                     <circle r="2.5" fill={color}/>
                     {canShow('port_names') && (
                       <>
-                        <text x="9" y="-5" fontSize="7.5" fontWeight="700" fill={color}>{p.name}</text>
+                        <text x={xOff} y={portYName} fontSize={nameFz} fontWeight="700" fill={color} textAnchor={anchor}>{p.name}</text>
                         {L.has('inventory') && canShow('inventory_detail') && (
                           <>
-                            <text x="9" y="4" fontSize="6.5" fill={color} opacity="0.9">INV: {p.inventory}%</text>
-                            <rect x="9" y="7" width="26" height="2.5" rx="1" fill="rgba(15,23,42,0.08)"/>
-                            <rect x="9" y="7" width={26 * p.inventory / 100} height="2.5" rx="1" fill={color} opacity="0.75"/>
-                            {p.waiting > 0 && <text x="9" y="16" fontSize="6" fill={C.warning}>{p.waiting} WAITING</text>}
+                            <text x={xOff} y={portYDetail} fontSize={detailFz} fill={color} opacity="0.9" textAnchor={anchor}>INV: {p.inventory}%</text>
+                            <rect x={isLeft ? -(barW + Math.abs(xOff)) : xOff} y={portYBar} width={barW} height={barH} rx="0.5" fill="rgba(15,23,42,0.08)"/>
+                            <rect x={isLeft ? -(barW + Math.abs(xOff)) : xOff} y={portYBar} width={barW * p.inventory / 100} height={barH} rx="0.5" fill={color} opacity="0.75"/>
+                            {p.waiting > 0 && <text x={xOff} y={portYWaiting} fontSize={subFz} fill={C.warning} textAnchor={anchor}>{p.waiting} WAITING</text>}
                           </>
                         )}
                         {L.has('inventory') && !canShow('inventory_detail') && (
-                          <text x="9" y="4" fontSize="6" fill={color} opacity="0.8">{p.inventory}%</text>
+                          <text x={xOff} y={portYDetail} fontSize={detailFz} fill={color} opacity="0.8" textAnchor={anchor}>{p.inventory}%</text>
                         )}
                       </>
                     )}
                     {!canShow('port_names') && isCritical && (
-                      <text x="7" y="-3" fontSize="6" fill={C.danger}>!</text>
+                      <text x="7" y="-3" fontSize={6} fill={C.danger}>!</text>
                     )}
                   </g>
                 )
@@ -874,6 +902,12 @@ export default function NationalEnergyTwin() {
               {L.has('refineries') && refineries.map(r => {
                 const isCritical = r.runRate < 75
                 const color = isCritical ? C.danger : C.warning
+
+                // Alternating layout side based on ID to avoid overlaps with close neighbors
+                const isLeft = r.id === 'jamnagar' || r.id === 'mrpl'
+                const xOff = isLeft ? -10 : 10
+                const anchor = isLeft ? 'end' : 'start'
+
                 return (
                   <g key={r.id} transform={`translate(${r.x},${r.y})`}>
                     <circle r="10" fill="none" stroke={color} strokeWidth="1" opacity="0.25" className="pulse-ring"/>
@@ -881,9 +915,9 @@ export default function NationalEnergyTwin() {
                       fill="rgba(240,244,248,0.85)" stroke={color} strokeWidth="1.5" filter="url(#glow-warm)"/>
                     {canShow('refinery_names') && (
                       <>
-                        <text x="-10" y="-8" fontSize="7" fontWeight="700" fill={color}>{r.name}</text>
-                        <text x="-10" y="1" fontSize="6.5" fill={color} opacity="0.8">RR: {r.runRate}%</text>
-                        <text x="-10" y="10" fontSize="6" fill={color} opacity="0.65">{r.throughput}mbpd</text>
+                        <text x={xOff} y={refYName} fontSize={nameFz} fontWeight="700" fill={color} textAnchor={anchor}>{r.name}</text>
+                        <text x={xOff} y={refYRR} fontSize={detailFz} fill={color} opacity="0.8" textAnchor={anchor}>RR: {r.runRate}%</text>
+                        <text x={xOff} y={refYThroughput} fontSize={subFz} fill={color} opacity="0.65" textAnchor={anchor}>{r.throughput}mbpd</text>
                       </>
                     )}
                   </g>
@@ -894,6 +928,12 @@ export default function NationalEnergyTwin() {
               {L.has('inventory') && sprs.map(s => {
                 const color = s.releasing ? C.secondary : '#c8a84a'
                 const fillRad = 7 * s.fillLevel / 100
+
+                // Alternating layout side based on ID to avoid overlaps with close neighbors
+                const isLeft = s.id === 'mangSPR'
+                const xOff = isLeft ? -9 : 9
+                const anchor = isLeft ? 'end' : 'start'
+
                 return (
                   <g key={s.id} transform={`translate(${s.x},${s.y})`}>
                     <polygon points="0,-8 6,0 0,8 -6,0" fill="rgba(240,244,248,0.9)"
@@ -902,9 +942,9 @@ export default function NationalEnergyTwin() {
                       fill={color} opacity="0.6"/>
                     {canShow('spr_names') && (
                       <>
-                        <text x="9" y="-4" fontSize="7" fontWeight="700" fill={color}>{s.name}</text>
-                        <text x="9" y="5" fontSize="6.5" fill={color} opacity="0.8">{s.fillLevel}%</text>
-                        {s.releasing && <text x="9" y="14" fontSize="6" fill={C.secondary}>▶ RELEASING</text>}
+                        <text x={xOff} y={sprYName} fontSize={nameFz} fontWeight="700" fill={color} textAnchor={anchor}>{s.name}</text>
+                        <text x={xOff} y={sprYFill} fontSize={detailFz} fill={color} opacity="0.8" textAnchor={anchor}>{s.fillLevel}%</text>
+                        {s.releasing && <text x={xOff} y={sprYRelease} fontSize={subFz} fill={C.secondary} textAnchor={anchor}>▶ RELEASING</text>}
                       </>
                     )}
                   </g>

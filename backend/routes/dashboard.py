@@ -124,7 +124,7 @@ async def get_dashboard():
         article_url = url if url.startswith("http") else None
 
         print(f"\n{'='*70}")
-        print(f"[AGENT 1 - RiskIntel] ▶ NEW ARTICLE FROM [{source}]")
+        print(f"[AGENT 1 - RiskIntel] [NEW] NEW ARTICLE FROM [{source}]")
         print(f"[AGENT 1 - RiskIntel]   Title   : {title}")
         print(f"[AGENT 1 - RiskIntel]   URL     : {article_url or '(no direct link available)'}")
         print(f"{'='*70}")
@@ -142,9 +142,9 @@ async def get_dashboard():
             estimated_impact  = agent_result.estimated_supply_impact_mbpd
             event_type        = agent_result.event_type
             severity          = agent_result.severity
-            print(f"[AGENT 1 - RiskIntel] ✔ Article processed: severity={severity}, prob={disruption_prob:.1f}%")
+            print(f"[AGENT 1 - RiskIntel] [OK] Article processed: severity={severity}, prob={disruption_prob:.1f}%")
         except Exception as exc:
-            print(f"[AGENT 1 - RiskIntel] ✗ Agent error on article: {exc}")
+            print(f"[AGENT 1 - RiskIntel] [ERR] Agent error on article: {exc}")
             disruption_prob   = 25.0
             affected_chokes   = ["Strait of Hormuz"]
             affected_countries= ["Unknown"]
