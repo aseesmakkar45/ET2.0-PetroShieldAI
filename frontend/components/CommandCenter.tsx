@@ -1692,7 +1692,6 @@ export default function CommandCenter({ view }: { view?: string }) {
               onClick={() => setSystemLogs([])}
               style={{
                 background: 'none',
-                border: 'none',
                 color: 'var(--color-text-muted)',
                 fontSize: 9,
                 cursor: 'pointer',
@@ -1898,7 +1897,7 @@ export default function CommandCenter({ view }: { view?: string }) {
             <ShieldAlert size={16} className="text-red-500 animate-pulse" />
             <span className="section-title" style={{ fontSize: 11 }}>Threat Corridors Summary</span>
           </div>
-          <span className={`badge ${dashboard?.overall_risk_score > 35 ? 'risk-bg-critical risk-critical' : 'risk-bg-low risk-low'}`} style={{ fontSize: 9 }}>
+          <span className={`badge ${(dashboard?.overall_risk_score ?? 0) > 35 ? 'risk-bg-critical risk-critical' : 'risk-bg-low risk-low'}`} style={{ fontSize: 9 }}>
             {dashboard?.risk_level || 'MONITOR'}
           </span>
         </div>
@@ -2234,6 +2233,7 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   // Detailed Procurement Optimizer Card
   function renderDetailedProcurementCard() {
+    const firstRiskId = dashboard?.top_risks?.[0]?.signal_id || "gdelt_default";
     return (
       <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2270,15 +2270,15 @@ export default function CommandCenter({ view }: { view?: string }) {
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <button 
-                    onClick={() => handleProcurementAction(dashboard.top_risks[0].signal_id, "APPROVE")}
-                    disabled={decisionActionStatus[dashboard.top_risks[0].signal_id] === "APPROVE"}
+                    onClick={() => handleProcurementAction(firstRiskId, "APPROVE")}
+                    disabled={decisionActionStatus[firstRiskId] === "APPROVE"}
                     className="btn-primary" 
                     style={{ flex: 1, padding: '6px 12px', fontSize: 11, background: '#10b981', boxShadow: 'none' }}
                   >
-                    {decisionActionStatus[dashboard.top_risks[0].signal_id] === "APPROVE" ? <Check size={12} style={{ margin: '0 auto' }} /> : "Approve Cargo rerouting"}
+                    {decisionActionStatus[firstRiskId] === "APPROVE" ? <Check size={12} style={{ margin: '0 auto' }} /> : "Approve Cargo rerouting"}
                   </button>
                   <button 
-                    onClick={() => handleProcurementAction(dashboard.top_risks[0].signal_id, "REJECT")}
+                    onClick={() => handleProcurementAction(firstRiskId, "REJECT")}
                     className="btn-ghost" 
                     style={{ padding: '6px 12px', fontSize: 11 }}
                   >

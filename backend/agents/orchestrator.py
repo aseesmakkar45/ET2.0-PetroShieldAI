@@ -11,6 +11,7 @@ from agents.scenario_modeller import run_scenario_modeller_agent, ScenarioResult
 from agents.procurement import run_procurement_orchestrator_agent, ProcurementPlan
 from agents.spr_advisor import run_spr_advisor_agent, SPRAdvisory
 from agents.executive_briefing import run_executive_briefing_agent
+from agents.gemini_monitor import audit_and_brief_with_gemini, audit_risk_prediction_with_gemini
 
 
 class DecisionStep(BaseModel := object):
@@ -68,6 +69,10 @@ class PetroShieldState:
         self.decision_trace: List[Dict[str, Any]] = []
         self.execution_log: List[str] = []
         
+        # Gemini Auditor & Dynamic narrative data
+        self.gemini_audit: Optional[Dict[str, Any]] = None
+        self.gemini_risk_validation: Optional[Dict[str, Any]] = None
+        
         # Cache memory
         self.timestamp: str = datetime.utcnow().isoformat()
 
@@ -82,7 +87,9 @@ class PetroShieldState:
             "spr_advisory": self.spr_advisory.model_dump() if self.spr_advisory else None,
             "executive_brief": self.executive_brief,
             "decision_trace": self.decision_trace,
-            "execution_log": self.execution_log
+            "execution_log": self.execution_log,
+            "gemini_audit": self.gemini_audit,
+            "gemini_risk_validation": self.gemini_risk_validation
         }
 
 
@@ -123,6 +130,35 @@ def run_petroshield_pipeline(
     )
     state.decision_trace.append(risk_step.to_dict())
     state.execution_log.append(f"Node 1 finished in {duration}ms. Severity: {state.risk_signal.severity}.")
+
+    # ─── Node 1.5: Gemini Risk Validation Report ─────────────────────────────
+    start_time_gemini_risk = datetime.utcnow()
+    gemini_risk_audit = audit_risk_prediction_with_gemini(state.risk_signal, raw_signal)
+    duration_gemini_risk = int((datetime.utcnow() - start_time_gemini_risk).total_seconds() * 1000)
+    
+    if gemini_risk_audit:
+        state.gemini_risk_validation = gemini_risk_audit
+        
+        # Override with Gemini's validated prediction
+        state.risk_signal.disruption_probability = gemini_risk_audit.get("adjusted_risk_score", state.risk_signal.disruption_probability)
+        state.risk_signal.severity = gemini_risk_audit.get("adjusted_severity", state.risk_signal.severity)
+        state.risk_signal.estimated_supply_impact_mbpd = gemini_risk_audit.get("adjusted_supply_impact_mbpd", state.risk_signal.estimated_supply_impact_mbpd)
+        
+        audit_risk_step = DecisionStep(
+            step_index=15,
+            agent_name="Gemini Risk Auditor (Agent 1.5)",
+            timestamp=start_time_gemini_risk.isoformat(),
+            input_summary="Initial subagent risk score and Graph-RAG context.",
+            reasoning="Audited initial risk score, evaluated contradictory/supporting evidence, potential weaknesses, and validated final prediction.",
+            output_summary=f"Validation: {gemini_risk_audit.get('validation_decision')}. Final Risk Score: {state.risk_signal.disruption_probability}%.",
+            duration_ms=duration_gemini_risk,
+            kg_entities_accessed=[],
+            confidence=0.96
+        )
+        state.decision_trace.append(audit_risk_step.to_dict())
+        state.execution_log.append(f"Node 1.5 (Gemini Risk Audit) finished in {duration_gemini_risk}ms. Validated severity: {state.risk_signal.severity}.")
+    else:
+        state.execution_log.append("Node 1.5 (Gemini Risk Audit) skipped or failed. Running with initial subagent prediction.")
 
     # Conditional Routing: If Risk is below threshold, stop pipeline early (MONITOR / ALERT)
     if state.risk_signal.severity in ("MONITOR", "ALERT"):
@@ -210,7 +246,38 @@ def run_petroshield_pipeline(
         confidence=0.95
     )
     state.decision_trace.append(brief_step.to_dict())
-    state.execution_log.append(f"Node 5 finished in {duration}ms. State machine completed.")
+    state.execution_log.append(f"Node 5 finished in {duration}ms.")
+
+    # ─── Node 6: Gemini Executive Auditor & Dynamic Monitor ──────────────────
+    start_time_gemini = datetime.utcnow()
+    gemini_data = audit_and_brief_with_gemini(state)
+    duration_gemini = int((datetime.utcnow() - start_time_gemini).total_seconds() * 1000)
+    
+    if gemini_data:
+        state.executive_brief = gemini_data.get("executive_briefing") or state.executive_brief
+        state.gemini_audit = gemini_data
+        
+        # Log warnings
+        warnings = gemini_data.get("audit_warnings") or []
+        for warn in warnings:
+            state.execution_log.append(f"[AUDIT WARNING] {warn}")
+            print(f"[AGENT 6 - GeminiAuditor] [WARN] {warn}")
+            
+        audit_step = DecisionStep(
+            step_index=6,
+            agent_name="Gemini Executive Auditor (Agent 6)",
+            timestamp=start_time_gemini.isoformat(),
+            input_summary="Outputs of agents 1-4 and raw threat signal.",
+            reasoning="Audited local calculations for consistency and generated dynamic contextual briefs.",
+            output_summary=f"Dynamic briefing generated. Found {len(warnings)} audit warning flags.",
+            duration_ms=duration_gemini,
+            kg_entities_accessed=[],
+            confidence=0.98
+        )
+        state.decision_trace.append(audit_step.to_dict())
+        state.execution_log.append(f"Node 6 (Gemini) finished in {duration_gemini}ms. State machine completed.")
+    else:
+        state.execution_log.append("Node 6 (Gemini) skipped or failed. Using fallback template briefing. State machine completed.")
 
     # Save to session history memory
     _state_checkpointer[state.risk_signal.signal_id] = state

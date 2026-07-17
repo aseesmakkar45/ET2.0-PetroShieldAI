@@ -24,6 +24,14 @@ export interface RiskSignal {
   evidence: string[]
   category: string
   tags: string[]
+  // Backend audit and RSS additions
+  signal_id?: string
+  event_type?: string
+  event_summary?: string
+  disruption_probability?: number
+  severity?: string
+  estimated_supply_impact_mbpd?: number
+  article_url?: string
 }
 
 export interface ScenarioCase {
@@ -124,6 +132,7 @@ export interface AISVessel {
   cargo: string
   eta?: string
   route_id?: string
+  data_source?: string
 }
 
 export interface OilField {

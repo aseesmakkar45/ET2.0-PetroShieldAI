@@ -92,7 +92,7 @@ export default function GlobalMap({ mapData, layers }: Props) {
         {L_ROUTES && (mapData as any).recommended_routes?.map((pathCoords: number[][], idx: number) => (
           <Polyline
             key={`rec_route_${idx}`}
-            positions={pathCoords}
+            positions={pathCoords as [number, number][]}
             color="#10b981"
             weight={3}
             opacity={0.9}

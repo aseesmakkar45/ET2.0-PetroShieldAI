@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { api } from '@/services/api'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -278,6 +279,36 @@ const C = {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function NationalEnergyTwin() {
+  const [backendMap, setBackendMap] = useState<any>(null)
+  const [backendScenarios, setBackendScenarios] = useState<any>(null)
+  const [backendAudit, setBackendAudit] = useState<any>(null)
+  const [recentSignals, setRecentSignals] = useState<any[]>([])
+  const [loadingState, setLoadingState] = useState(false)
+
+  const refreshBackendData = useCallback(async () => {
+    try {
+      const [mRes, sRes, drRes, dRes] = await Promise.all([
+        api.get('/api/map'),
+        api.get('/api/scenarios'),
+        api.get('/api/decision-replay'),
+        api.get('/api/dashboard')
+      ])
+      setBackendMap(mRes.data)
+      setBackendScenarios(sRes.data)
+      setBackendAudit(drRes.data)
+      if (dRes.data?.top_risks) {
+        setRecentSignals(dRes.data.top_risks)
+      }
+    } catch (e) {
+      console.error("Error refreshing backend data:", e)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshBackendData()
+    const iv = setInterval(refreshBackendData, 8000)
+    return () => clearInterval(iv)
+  }, [refreshBackendData])
   const [mode, setMode] = useState<SimMode>('LIVE')
   const [activeEvent, setActiveEvent] = useState<EventId>('none')
   const [simDay, setSimDay] = useState(0)
@@ -307,45 +338,46 @@ export default function NationalEnergyTwin() {
   const russianBoost = approvedActions.has('russian')
   const capeReroute = approvedActions.has('cape')
 
-  const importDeficit = mode === 'LIVE' ? 0 : isHormuz
-    ? Math.min(2.4, t * 0.18) - (spr ? 0.9 : 0) - (russianBoost ? 0.7 : 0)
-    : isRedSea ? Math.min(0.9, t * 0.06) - (spr ? 0.3 : 0)
-    : isOPEC ? Math.min(1.2, t * 0.04) - (russianBoost ? 0.6 : 0)
-    : isCyclone ? Math.min(1.8, t * 0.2) - (spr ? 0.4 : 0)
-    : 0
+  const backendBaseScenario = backendScenarios && backendScenarios[0]?.scenarios ? backendScenarios[0].scenarios[1] : null
+  const backendShortfall = backendBaseScenario?.supply_shortfall_mbpd || (isHormuz ? 2.4 : isRedSea ? 0.9 : isOPEC ? 1.2 : isCyclone ? 1.8 : 0)
+  const backendBrentMean = backendBaseScenario?.brent_price_mean || (isHormuz ? 115 : isRedSea ? 94 : isOPEC ? 102 : 82.5)
+  const backendGridStress = backendBaseScenario?.power_sector_impact?.electricity_cost_increase_pct ? (40 + backendBaseScenario.power_sector_impact.electricity_cost_increase_pct * 3.5) : (isHormuz ? 90 : 60)
 
-  const brent = mode === 'LIVE' ? 82.5 : isHormuz
-    ? Math.min(115, 82.5 + t * 2.2 - (spr ? 3.5 : 0))
-    : isOPEC ? Math.min(102, 82.5 + t * 0.7)
-    : isRedSea ? Math.min(94, 82.5 + t * 0.5)
-    : 82.5
-
+  const importDeficit = mode === 'LIVE' ? 0 : backendShortfall * (t / 30) - (spr ? 0.9 : 0) - (russianBoost ? 0.7 : 0)
+  const brent = mode === 'LIVE' ? 82.5 : 82.5 + (backendBrentMean - 82.5) * (t / 30) - (spr ? 3.5 : 0)
   const demandSat = Math.max(65, 100 - Math.abs(importDeficit) * 14 - t * 0.3)
-  const gridStress = Math.min(95, 40 + Math.abs(importDeficit) * 18 + t * 0.4)
+  const gridStress = mode === 'LIVE' ? 40 : Math.min(95, 40 + (backendGridStress - 40) * (t / 30))
 
   const ports: PortNode[] = BASE_PORTS.map(p => {
-    if (mode === 'LIVE') return p
-    let inv = p.inventory
-    const isSikkaVadinar = p.id === 'sikka' || p.id === 'vadinar'
-    if (isHormuz && isSikkaVadinar) inv = Math.max(20, p.inventory - t * 0.8 + (spr ? 0.6 * t : 0))
-    else if (isCyclone && isSikkaVadinar) inv = Math.max(15, p.inventory - t * 1.2)
-    else if (isHormuz) inv = Math.max(35, p.inventory - t * 0.3)
+    const backendPort = backendMap?.ports?.find((bp: any) => bp.id === p.id)
+    let inv = backendPort ? backendPort.inventory : p.inventory
+    if (mode === 'SIMULATION') {
+      const isSikkaVadinar = p.id === 'sikka' || p.id === 'vadinar'
+      if (isHormuz && isSikkaVadinar) inv = Math.max(20, inv - t * 0.8 + (spr ? 0.6 * t : 0))
+      else if (isCyclone && isSikkaVadinar) inv = Math.max(15, inv - t * 1.2)
+      else if (isHormuz) inv = Math.max(35, inv - t * 0.3)
+    }
     return { ...p, inventory: Math.round(inv) }
   })
 
   const refineries: RefineryNode[] = BASE_REFINERIES.map(r => {
-    if (mode === 'LIVE') return r
-    let rr = r.runRate
-    if (isHormuz) rr = Math.max(65, r.runRate - t * 0.9 + (spr ? 0.5 * t : 0) + (russianBoost ? 0.3 * t : 0))
-    else if (isCyclone && r.id === 'jamnagar') rr = Math.max(20, r.runRate - t * 3)
+    const backendRefinery = backendMap?.refineries?.find((br: any) => br.id === r.id)
+    let rr = backendRefinery ? backendRefinery.utilization : r.runRate
+    if (mode === 'SIMULATION') {
+      if (isHormuz) rr = Math.max(65, rr - t * 0.9 + (spr ? 0.5 * t : 0) + (russianBoost ? 0.3 * t : 0))
+      else if (isCyclone && r.id === 'jamnagar') rr = Math.max(20, rr - t * 3)
+    }
     return { ...r, runRate: Math.round(Math.min(r.runRate, rr)) }
   })
 
   const sprs: SPRNode[] = BASE_SPRS.map(s => {
-    if (mode === 'LIVE') return s
-    const releasing = spr && (s.id === 'padur' || s.id === 'mangSPR')
-    const fill = releasing ? Math.max(0, s.fillLevel - t * 1.1) : s.fillLevel
-    return { ...s, fillLevel: Math.round(fill), releasing }
+    const backendSPR = backendMap?.spr_facilities?.find((bs: any) => bs.id === (s.id === 'mangSPR' ? 'spr_mangaluru' : s.id === 'padur' ? 'spr_padur' : 'spr_vizag'))
+    let fill = backendSPR ? backendSPR.fill_pct : s.fillLevel
+    if (mode === 'SIMULATION') {
+      const releasing = spr && (s.id === 'padur' || s.id === 'mangSPR')
+      fill = releasing ? Math.max(0, fill - t * 1.1) : fill
+    }
+    return { ...s, fillLevel: Math.round(fill), releasing: spr && (s.id === 'padur' || s.id === 'mangSPR') }
   })
 
   // ── Tanker animation loop ──
@@ -421,27 +453,82 @@ export default function NationalEnergyTwin() {
     if (consoleRef.current) consoleRef.current.scrollTop = consoleRef.current.scrollHeight
   }, [consoleLogs])
 
-  const fireEvent = (evtId: EventId) => {
+  const fireEvent = async (evtId: EventId) => {
     setScanlineActive(true)
+    setLoadingState(true)
     setTimeout(() => setScanlineActive(false), 1200)
-    setActiveEvent(evtId)
-    setMode('SIMULATION')
-    setSimDay(0)
-    setIsPlaying(true)
-    setApprovedActions(new Set())
-    setNarrativeIdx(0)
-    setConsoleLogs([])
+    try {
+      await api.post('/api/scenarios/generate', { scenario_type: evtId })
+      await refreshBackendData()
+      setActiveEvent(evtId)
+      setMode('SIMULATION')
+      setSimDay(0)
+      setIsPlaying(true)
+      setApprovedActions(new Set())
+      setNarrativeIdx(0)
+      setConsoleLogs([])
+    } catch (e) {
+      console.error("Failed to generate scenario:", e)
+    } finally {
+      setLoadingState(false)
+    }
   }
 
-  const resetToLive = () => {
-    setMode('LIVE')
-    setActiveEvent('none')
-    setSimDay(0)
-    setIsPlaying(false)
-    setApprovedActions(new Set())
-    setNarrativeIdx(0)
-    setTankers(BASE_TANKERS)
-    setConsoleLogs([])
+  const resetToLive = async () => {
+    setLoadingState(true)
+    try {
+      await api.post('/api/signals/simulate', {
+        raw_signal: "CRITICAL conflict: Normal maritime shipping lanes active. Baseline crude supplies flow normally.",
+        source_type: "POLICY"
+      })
+      await refreshBackendData()
+      setMode('LIVE')
+      setActiveEvent('none')
+      setSimDay(0)
+      setIsPlaying(false)
+      setApprovedActions(new Set())
+      setNarrativeIdx(0)
+      setConsoleLogs([])
+    } catch (e) {
+      console.error("Failed to reset live mode:", e)
+    } finally {
+      setLoadingState(false)
+    }
+  }
+
+  const fireLiveSignal = async (sig: any) => {
+    setScanlineActive(true)
+    setLoadingState(true)
+    setTimeout(() => setScanlineActive(false), 1200)
+    try {
+      await api.post('/api/signals/simulate', {
+        raw_signal: sig.event_summary,
+        source_type: sig.source_type
+      })
+      await refreshBackendData()
+      let matchedEvent: EventId = 'none'
+      const summary = sig.event_summary.toLowerCase()
+      if (summary.includes('hormuz') || summary.includes('gulf') || (sig.affected_chokepoints && sig.affected_chokepoints.includes('cp_hormuz'))) {
+        matchedEvent = 'hormuz'
+      } else if (summary.includes('red sea') || summary.includes('suez') || summary.includes('bab') || (sig.affected_chokepoints && sig.affected_chokepoints.includes('cp_bab'))) {
+        matchedEvent = 'redsea'
+      } else if (summary.includes('opec') || summary.includes('cut') || summary.includes('quota')) {
+        matchedEvent = 'opec'
+      } else {
+        matchedEvent = 'cyclone'
+      }
+      setActiveEvent(matchedEvent)
+      setMode('SIMULATION')
+      setSimDay(0)
+      setIsPlaying(true)
+      setApprovedActions(new Set())
+      setNarrativeIdx(0)
+      setConsoleLogs([])
+    } catch (e) {
+      console.error("Failed to run live signal:", e)
+    } finally {
+      setLoadingState(false)
+    }
   }
 
   const toggleLayer = (l: string) => {
@@ -1217,6 +1304,34 @@ export default function NationalEnergyTwin() {
                     </button>
                   ))}
                 </div>
+                
+                {recentSignals && recentSignals.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>
+                      LIVE GEOPOLITICAL ALERTS (REAL-TIME RSS)
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                      {recentSignals.map((sig, sIdx) => (
+                        <button key={sIdx} onClick={() => fireLiveSignal(sig)} style={{
+                          background: 'rgba(239, 68, 68, 0.05)',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          borderRadius: 6, padding: '7px 9px',
+                          cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
+                          width: '100%',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }}>{sig.event_summary}</span>
+                            <span style={{ fontSize: 7.5, color: C.danger, fontWeight: 800 }}>{sig.severity}</span>
+                          </div>
+                          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 7.5, color: C.textDim }}>
+                            <span>Probability: <span style={{ color: C.primary, fontWeight: 700 }}>{sig.disruption_probability.toFixed(0)}%</span></span>
+                            <span>Impact: <span style={{ color: C.warning, fontWeight: 700 }}>{sig.estimated_supply_impact_mbpd}M</span></span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1241,6 +1356,60 @@ export default function NationalEnergyTwin() {
                   </div>
                 </div>
 
+                {/* Gemini Risk Audit Panel */}
+                {backendAudit?.gemini_risk_validation && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.02)', border: '1px solid rgba(239, 68, 68, 0.15)',
+                    borderRadius: 6, padding: 10, display: 'flex', flexDirection: 'column', gap: 6
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 9, color: C.danger, letterSpacing: '1.5px', fontWeight: 800 }}>
+                        AI RISK AUDIT & VALIDATION
+                      </span>
+                      <span style={{
+                        fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
+                        background: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? C.primary : C.warning,
+                        border: `1px solid ${backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                      }}>
+                        {backendAudit.gemini_risk_validation.validation_decision}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: C.textDim }}>
+                      <span>Confidence: <strong style={{ color: C.text }}>{backendAudit.gemini_risk_validation.confidence_level}</strong></span>
+                    </div>
+                    
+                    {backendAudit.gemini_risk_validation.confidence_explanation && (
+                      <p style={{ fontSize: 8, color: C.textDim, margin: '2px 0 4px 0', lineHeight: 1.4, fontStyle: 'italic' }}>
+                        {backendAudit.gemini_risk_validation.confidence_explanation}
+                      </p>
+                    )}
+
+                    {backendAudit.gemini_risk_validation.supporting_evidence?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 7.5, color: C.textDim, fontWeight: 700, marginBottom: 2 }}>SUPPORTING EVIDENCE</div>
+                        {backendAudit.gemini_risk_validation.supporting_evidence.slice(0, 2).map((ev: string, idx: number) => (
+                          <div key={idx} style={{ fontSize: 7.5, color: C.text, display: 'flex', gap: 4, marginTop: 1 }}>
+                            <span>-</span><span>{ev}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {backendAudit.gemini_risk_validation.weaknesses_and_uncertainties?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 7.5, color: C.textDim, fontWeight: 700, marginBottom: 2, marginTop: 4 }}>UNCERTAINTIES & WEAKNESSES</div>
+                        {backendAudit.gemini_risk_validation.weaknesses_and_uncertainties.slice(0, 2).map((w: string, idx: number) => (
+                          <div key={idx} style={{ fontSize: 7.5, color: C.textDim, display: 'flex', gap: 4, marginTop: 1 }}>
+                            <span>-</span><span>{w}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* AI Narrative */}
                 <div style={{
                   background: 'rgba(8, 16, 28, 0.5)', border: `1px solid ${C.borderFaint}`,
@@ -1253,7 +1422,7 @@ export default function NationalEnergyTwin() {
                     <motion.p key={narrativeIdx}
                       initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       style={{ fontSize: 10, color: C.text, lineHeight: 1.55, margin: 0 }}>
-                      {scenario.narrative[narrativeIdx]}
+                      {backendAudit?.gemini_audit?.narratives && backendAudit.gemini_audit.narratives.length > 0 ? backendAudit.gemini_audit.narratives[narrativeIdx % backendAudit.gemini_audit.narratives.length] : scenario.narrative[narrativeIdx]}
                     </motion.p>
                   </AnimatePresence>
                 </div>
@@ -1262,7 +1431,7 @@ export default function NationalEnergyTwin() {
                 <div>
                   <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>PREDICTED CASCADE</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {scenario.cascadeSteps.map((step, i) => {
+                    {((backendAudit?.gemini_audit?.cascade_steps && backendAudit.gemini_audit.cascade_steps.length > 0 ? backendAudit.gemini_audit.cascade_steps : scenario.cascadeSteps) as string[]).map((step: string, i: number) => {
                       const dayMatch = step.match(/Day (\d+)/)
                       const day = dayMatch ? parseInt(dayMatch[1]) : 0
                       const past = simDay >= day
