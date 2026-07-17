@@ -100,11 +100,11 @@ const ZOOM_CONFIGS: Record<ZoomLevel, { scale: number; tx: number; ty: number; l
   port:     { scale: 6.0,  tx: -3420, ty: -1380,label: '⚓ Port' },
 }
 
-// Labels visible at each zoom level — prevents clustering at world zoom
+// Labels visible at each zoom level — always preserve critical labels
 const LABEL_ZOOM: Record<ZoomLevel, string[]> = {
-  world:   ['supplier_labels', 'chokepoints'],
-  mideast: ['supplier_labels', 'chokepoints', 'tanker_names'],
-  arabian: ['chokepoints', 'tanker_names', 'port_names'],
+  world:   ['supplier_labels', 'chokepoints', 'port_names', 'refinery_names', 'spr_names'],
+  mideast: ['supplier_labels', 'chokepoints', 'tanker_names', 'port_names', 'refinery_names', 'spr_names'],
+  arabian: ['chokepoints', 'tanker_names', 'port_names', 'refinery_names', 'spr_names'],
   india:   ['port_names', 'refinery_names', 'spr_names', 'tanker_names'],
   port:    ['port_names', 'refinery_names', 'spr_names', 'tanker_names', 'inventory_detail'],
 }
