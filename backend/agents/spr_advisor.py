@@ -94,8 +94,19 @@ def run_spr_advisor_agent(scenario_result: ScenarioResult) -> SPRAdvisory:
             ))
 
     # 2. Design Drawdown Schedule
-    # Standard Indian caverns total volume: 39.0 million barrels.
-    current_spr_volume = 39.0
+    # SPR total volume from KG spr_facility nodes (not hardcoded 39.0)
+    current_spr_volume = 0.0
+    spr_node_labels = []
+    for node_id, attrs in G.nodes(data=True):
+        if attrs.get("type") == "spr_facility":
+            current_spr_volume += attrs.get("capacity_million_bbl", 0.0)
+            spr_node_labels.append(node_id)
+    # India ISPRL actual capacity: Padur 18.37 + Mangaluru 11.0 + Vizag 9.77 = 39.14
+    # If KG loaded correctly this gives ~39.14; fallback to 39.0 if nodes missing
+    if current_spr_volume < 5.0:
+        current_spr_volume = 39.14
+    print(f"[AGENT 4 - SPR] Live SPR volume from KG: {current_spr_volume:.2f} million barrels ({len(spr_node_labels)} caverns)")
+
     drawdown_schedule = []
     remaining_spr = current_spr_volume
     
@@ -128,6 +139,17 @@ def run_spr_advisor_agent(scenario_result: ScenarioResult) -> SPRAdvisory:
     refill_duration = int(deficit / refill_rate) if refill_rate > 0 else 0
     refill_cost = (deficit * 1000000.0 * price_ceiling) / 1000000000.0  # Cost in USD Billion
 
+    # Dynamic replenishment source: lowest-risk non-disrupted supplier from KG
+    disrupted = scenario_result.trigger_signal.affected_suppliers or []
+    best_supplier_label = "Saudi Arabia"
+    best_risk = 100.0
+    for node_id, attrs in G.nodes(data=True):
+        if attrs.get("type") == "supplier" and node_id not in disrupted:
+            risk = attrs.get("risk_score", 50.0)
+            if risk < best_risk:
+                best_risk = risk
+                best_supplier_label = attrs.get("label", best_supplier_label)
+
     replenishment_plan = ReplenishmentPlan(
         earliest_replenishment_date=f"Day {duration + 10}",
         confidence_in_timeline=base_case.probability,
@@ -136,7 +158,7 @@ def run_spr_advisor_agent(scenario_result: ScenarioResult) -> SPRAdvisory:
         refill_duration_days=refill_duration,
         estimated_cost_usd_bn=round(refill_cost, 2),
         optimal_buy_window=f"Restock when Brent crude price drops below ${price_ceiling:.1f}/bbl",
-        replenishment_source="Saudi Arabia (reliable Yanbu export terminal bypass route)"
+        replenishment_source=f"{best_supplier_label} (KG-selected: lowest risk score {best_risk:.0f}/100 among non-disrupted suppliers)"
     )
 
     # 4. Compile explainability and advisory

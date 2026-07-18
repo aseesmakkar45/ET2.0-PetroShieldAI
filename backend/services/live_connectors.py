@@ -195,7 +195,7 @@ class LiveDataConnectors:
         if unique_articles:
             self.rss_cache = unique_articles[:8]  # Keep top 8
             self.rss_last_fetched = now
-            print(f"[RSS] ✔ Cached {len(self.rss_cache)} unique energy articles from {len(_RSS_FEEDS)} sources.")
+            print(f"[RSS] [OK] Cached {len(self.rss_cache)} unique energy articles from {len(_RSS_FEEDS)} sources.")
         else:
             print("[RSS] No articles matched energy keywords. Using curated fallback headlines.")
             # Curated realistic fallback with real anchor pages

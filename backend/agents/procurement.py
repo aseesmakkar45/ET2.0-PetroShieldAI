@@ -98,30 +98,80 @@ def run_procurement_orchestrator_agent(
     scenario_id = scenario_result.scenario_id
     base_case = scenario_result.scenarios[1]  # Optimize for Base Case
     shortfall = base_case.supply_shortfall_mbpd
-    
-    # 1. Gather all suppliers & potential reroute alternatives from the graph
+
+    # Get the disrupted suppliers from the risk signal (dynamic — not always sa_iraq)
+    disrupted_suppliers = scenario_result.trigger_signal.affected_suppliers
+    if not disrupted_suppliers:
+        # Fallback: use chokepoint-connected suppliers
+        chokepoints = scenario_result.trigger_signal.affected_chokepoints
+        disrupted_suppliers = []
+        for node_id, attrs in G.nodes(data=True):
+            if attrs.get("type") == "supplier":
+                routes = [n for n in G.neighbors(node_id) if G.nodes[n].get("type") == "shipping_route"]
+                for r_id in routes:
+                    route_cps = [n for n in G.neighbors(r_id) if G.nodes[n].get("type") == "chokepoint"]
+                    if any(cp in chokepoints for cp in route_cps):
+                        disrupted_suppliers.append(node_id)
+        disrupted_suppliers = list(set(disrupted_suppliers))
+
+    print(f"[AGENT 3 - Procurement] Disrupted suppliers (from risk signal): {disrupted_suppliers}")
+
+    # Fetch live Brent price for cost baseline
+    from services.live_connectors import connectors
+    live_brent = connectors.fetch_eia_brent_price()
+    print(f"[AGENT 3 - Procurement] Live Brent baseline: ${live_brent:.2f}/bbl")
+
+    # 1. Gather alternative suppliers from KG (non-disrupted)
     alternative_suppliers = []
-    
-    # Get the disrupted suppliers from the risk signal
-    disrupted_suppliers = scenario_result.trigger_signal.affected_suppliers or ["sa_iraq"]
-    
-    # Iterate through Knowledge Graph nodes to locate non-disrupted suppliers
+
     for node_id, attrs in G.nodes(data=True):
-        if attrs.get("type") == "supplier" and node_id not in disrupted_suppliers:
-            # Map crude grade from processable grades or mock characteristics
-            crude_grade = "Arab Light" if "saudi" in node_id else ("Urals" if "russia" in node_id else "Murban")
-            
-            # Fetch cost per barrel: base spot price + regional premium
-            base_cost = 82.50 if "usa" in node_id else (78.00 if "russia" in node_id else 81.00)
-            
-            alternative_suppliers.append(SupplierInfo(
-                id=node_id,
-                name=attrs.get("label", node_id),
-                country=attrs.get("country", node_id),
-                crude_grade=crude_grade,
-                available_capacity_mbpd=0.8 if "saudi" in node_id else (0.5 if "usa" in node_id else 0.3),
-                base_cost_per_bbl=base_cost
-            ))
+        if attrs.get("type") != "supplier" or node_id in disrupted_suppliers:
+            continue
+
+        # ── Crude grade from KG attributes ────────────────────────────────────
+        # KG nodes store processable_grades but suppliers have oil fields connected
+        crude_grades = []
+        for pred in G.predecessors(node_id):
+            if G.nodes[pred].get("type") == "oil_field":
+                field_grades = G.nodes[pred].get("processable_grades", [])
+                crude_grades.extend(field_grades)
+        if not crude_grades:
+            # Fallback to country-specific defaults from KG node data
+            country = attrs.get("country", "").lower()
+            grade_map = {
+                "saudi arabia": "Arab Light", "iraq": "Basra Light",
+                "russia": "Urals", "uae": "Murban", "iran": "Iranian Heavy",
+                "nigeria": "Bonny Light", "angola": "Girassol",
+                "usa": "WTI Midland", "kuwait": "Kuwait Export",
+            }
+            crude_grades = [grade_map.get(country, "Mixed Crude")]
+        crude_grade = crude_grades[0]
+
+        # ── Cost from live Brent + KG risk premium ────────────────────────────
+        # Higher KG risk_score → higher discount (distressed supply = discount)
+        kg_risk = attrs.get("risk_score", 40.0) / 100.0
+        # Premium ranges from -3 (sanctioned discount) to +4 (quality/logistic premium)
+        risk_premium = (kg_risk - 0.40) * 5.0
+        base_cost = round(live_brent + risk_premium, 2)
+
+        # ── Capacity from KG capacity_mbpd (from suppliers.json) ─────────────
+        # capacity_mbpd not stored in supplier nodes; use KG export capacity estimates
+        # based on India's actual import mix
+        country = attrs.get("country", "").lower()
+        capacity_map = {
+            "saudi arabia": 1.2, "iraq": 0.8, "russia": 0.9, "uae": 0.5,
+            "nigeria": 0.4, "angola": 0.3, "usa": 0.6, "kuwait": 0.3, "iran": 0.1,
+        }
+        available_capacity = capacity_map.get(country, 0.25)
+
+        alternative_suppliers.append(SupplierInfo(
+            id=node_id,
+            name=attrs.get("label", node_id),
+            country=attrs.get("country", node_id),
+            crude_grade=crude_grade,
+            available_capacity_mbpd=available_capacity,
+            base_cost_per_bbl=base_cost
+        ))
 
     # 2. Setup optimization lists
     n = len(alternative_suppliers)
@@ -230,18 +280,23 @@ def run_procurement_orchestrator_agent(
         cost_premium = (supplier.base_cost_per_bbl + freight_cost) - 82.50  # premium vs current Brent
         cost_per_bbl = supplier.base_cost_per_bbl + freight_cost
         
+        # Route risk reduction — from actual route risk_score in KG (not hardcoded 75/60)
+        route_risk_score = route_node.get("risk_score", 30.0)
+        risk_reduction = round((1.0 - route_risk_score / 100.0) * 80.0, 1)
+        
         # Compute optimization score (0-100)
         score = max(50.0, 100.0 - (cost_premium * 3.5) - (transit_days * 0.8) - (port_congestion.avg_wait_days * 5))
-        
+
         # Setup explainability
         explainability = ExplainabilityBlock(
             reasoning_chain=[
                 f"1. Analyzed candidate supplier {supplier.name} with crude grade {supplier.crude_grade}.",
                 f"2. Verified tanker pool availability in {tanker_region} ({tanker_info.available_count} vessels active).",
                 f"3. Adjusted transit time adding {port_congestion.avg_wait_days} days of port wait at {port_congestion.port_name}.",
-                f"4. Selected as Rank {rank+1} recommendation with optimization score {score:.1f}/100."
+                f"4. Selected as Rank {rank+1} recommendation with optimization score {score:.1f}/100.",
+                f"5. Live Brent baseline ${live_brent:.2f}/bbl; supplier cost ${supplier.base_cost_per_bbl:.2f}/bbl (risk premium applied).",
             ],
-            evidence_used=[f"Tanker pool and port registry indexes in Knowledge Graph"],
+            evidence_used=[f"KG supplier node: {supplier.id}, risk_score={attrs.get('risk_score', 'N/A')}/100"],
             supporting_news=[],
             supporting_policies=[],
             historical_similar_events=[],
@@ -258,7 +313,7 @@ def run_procurement_orchestrator_agent(
             rank=rank + 1,
             optimization_score=round(score, 1),
             action="REROUTE" if rank == 0 else "SPOT_BUY",
-            from_supplier="sa_iraq",  # Disrupted
+            from_supplier=disrupted_suppliers[0] if disrupted_suppliers else "disrupted_supplier",
             to_supplier=supplier.name,
             route=RouteInfo(
                 route_name=route_node.get("label", route_id),

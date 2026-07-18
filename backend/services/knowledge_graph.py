@@ -122,6 +122,135 @@ def build_knowledge_graph() -> nx.DiGraph:
                    avg_charter_rate_usd_day=t["avg_charter_rate_usd_day"],
                    estimated_positioning_days=t["estimated_positioning_days"])
 
+    # ─── Historical Disruption Events (RAG Memory) ───────────────────────────
+    # These nodes are the long-term memory of the intelligence system.
+    # The RAG retrieves them to ground scenario assumptions in real precedents.
+    historical_events = [
+        {
+            "id": "hist_1990_gulf_war",
+            "name": "1990 Gulf War Oil Supply Disruption",
+            "event_type": "MILITARY_CONFLICT",
+            "year": 1990,
+            "supply_loss_mbpd": 4.3,
+            "duration_days": 180,
+            "brent_spike_pct": 125,
+            "chokepoints_affected": ["cp_hormuz"],
+            "notes": "Iraqi invasion of Kuwait; Saudi, US SPR released. Brent nearly doubled."
+        },
+        {
+            "id": "hist_1979_iran_revolution",
+            "name": "1979 Iranian Revolution Supply Shock",
+            "event_type": "MILITARY_CONFLICT",
+            "year": 1979,
+            "supply_loss_mbpd": 5.6,
+            "duration_days": 365,
+            "brent_spike_pct": 150,
+            "chokepoints_affected": ["cp_hormuz"],
+            "notes": "Iranian production halted; second oil crisis. Triggered IEA strategic reserves."
+        },
+        {
+            "id": "hist_2019_abqaiq",
+            "name": "2019 Abqaiq Drone Attacks",
+            "event_type": "MILITARY_CONFLICT",
+            "year": 2019,
+            "supply_loss_mbpd": 5.7,
+            "duration_days": 14,
+            "brent_spike_pct": 15,
+            "chokepoints_affected": ["cp_hormuz"],
+            "notes": "Drone attack on Saudi Aramco Abqaiq facility; quickly restored. Short-lived spike."
+        },
+        {
+            "id": "hist_2023_houthi_redsea",
+            "name": "2023–2024 Houthi Red Sea Shipping Attacks",
+            "event_type": "SHIPPING_DISRUPTION",
+            "year": 2023,
+            "supply_loss_mbpd": 1.2,
+            "duration_days": 300,
+            "brent_spike_pct": 8,
+            "chokepoints_affected": ["cp_bab_el_mandeb", "cp_suez"],
+            "notes": "Global shipping diverted around Cape of Good Hope. Freight rates +200%. 14 extra days transit."
+        },
+        {
+            "id": "hist_2021_ever_given",
+            "name": "2021 Ever Given Suez Canal Blockage",
+            "event_type": "INFRASTRUCTURE_FAILURE",
+            "year": 2021,
+            "supply_loss_mbpd": 0.8,
+            "duration_days": 6,
+            "brent_spike_pct": 4,
+            "chokepoints_affected": ["cp_suez"],
+            "notes": "Container ship grounded in Suez; $9.6B/day trade impact. Cleared in 6 days."
+        },
+        {
+            "id": "hist_2022_russia_sanctions",
+            "name": "2022 Russia Sanctions Shock",
+            "event_type": "SANCTIONS",
+            "year": 2022,
+            "supply_loss_mbpd": 2.0,
+            "duration_days": 365,
+            "brent_spike_pct": 40,
+            "chokepoints_affected": [],
+            "notes": "Western embargo on Russian oil post-Ukraine invasion. India absorbed discounted Urals."
+        },
+        {
+            "id": "hist_2011_libya_civil_war",
+            "name": "2011 Libya Civil War Supply Loss",
+            "event_type": "MILITARY_CONFLICT",
+            "year": 2011,
+            "supply_loss_mbpd": 1.4,
+            "duration_days": 270,
+            "brent_spike_pct": 27,
+            "chokepoints_affected": [],
+            "notes": "Libyan production offline during Arab Spring; IEA released 60M barrels collectively."
+        },
+        {
+            "id": "hist_2023_opec_cuts",
+            "name": "2023 OPEC+ Voluntary Production Cuts",
+            "event_type": "OPEC_DECISION",
+            "year": 2023,
+            "supply_loss_mbpd": 1.65,
+            "duration_days": 365,
+            "brent_spike_pct": 6,
+            "chokepoints_affected": [],
+            "notes": "Saudi Arabia, Russia extended cuts through end 2024. Brent supported above $80."
+        },
+        {
+            "id": "hist_2012_iran_sanctions",
+            "name": "2012 Iran Oil Sanctions",
+            "event_type": "SANCTIONS",
+            "year": 2012,
+            "supply_loss_mbpd": 1.0,
+            "duration_days": 730,
+            "brent_spike_pct": 18,
+            "chokepoints_affected": ["cp_hormuz"],
+            "notes": "US/EU sanctions on Iranian oil; Iran threatened Hormuz closure multiple times."
+        },
+        {
+            "id": "hist_2005_katrina",
+            "name": "2005 Hurricane Katrina US Gulf Production Loss",
+            "event_type": "WEATHER_EVENT",
+            "year": 2005,
+            "supply_loss_mbpd": 1.5,
+            "duration_days": 60,
+            "brent_spike_pct": 12,
+            "chokepoints_affected": [],
+            "notes": "Major hurricanes damaged US Gulf Coast infrastructure; IEA released 60M barrels."
+        },
+    ]
+    for event in historical_events:
+        G.add_node(
+            event["id"],
+            label=event["name"],
+            type="historical_event",
+            event_type=event["event_type"],
+            year=event["year"],
+            supply_loss_mbpd=event["supply_loss_mbpd"],
+            duration_days=event["duration_days"],
+            brent_spike_pct=event["brent_spike_pct"],
+            chokepoints_affected=event["chokepoints_affected"],
+            notes=event["notes"]
+        )
+
     # ─── Edges (relationships) ────────────────────────────────────────────────
 
     # Oil fields → Suppliers (Produces)
