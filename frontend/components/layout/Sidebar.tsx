@@ -16,7 +16,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/scenario-simulator',       label: '3. Scenario & Digital Twin',   icon: Zap },
   { href: '/dashboard/procurement-orchestrator',  label: '4. Procurement & Reserves',    icon: ShoppingCart },
   { href: '/dashboard/reports-insights',          label: '5. Reports & Insights',         icon: BarChart3 },
-  { href: '/dashboard/settings',                 label: '6. Settings',                  icon: Settings },
 ]
 
 export default function Sidebar() {

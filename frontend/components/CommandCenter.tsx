@@ -2456,16 +2456,16 @@ export default function CommandCenter({ view }: { view?: string }) {
                 gap: 6
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>Reroute Option: Russian Urals (Baltic Route)</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-emerald)' }}>Reroute Option: Russian Urals (Baltic Route)</span>
                   <span className="badge risk-bg-low risk-low" style={{ fontSize: 9 }}>Rank 1</span>
                 </div>
-                <p style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
                   Optimal linear optimization solution. Diverts heavy crude tanker pool from Baltic terminals to India West Coast (Sikka/Vadinar).
                 </p>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11, color: '#cbd5e1', marginTop: 6, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11, color: 'var(--color-text-primary)', marginTop: 6, padding: '6px 0', borderTop: '1px solid rgba(128,128,128,0.1)' }}>
                   <div>Allocated Volume: <strong>0.3 mbpd</strong></div>
-                  <div>Freight Discount: <strong style={{ color: '#34d399' }}>-$2.00/bbl</strong></div>
+                  <div>Freight Discount: <strong style={{ color: 'var(--color-emerald)' }}>-$2.00/bbl</strong></div>
                   <div>Transit Duration: <strong>11 days</strong></div>
                 </div>
 
@@ -2492,7 +2492,7 @@ export default function CommandCenter({ view }: { view?: string }) {
               {/* Option 2 */}
               <div style={{
                 padding: 12,
-                background: 'rgba(15, 23, 42, 0.4)',
+                background: 'var(--color-bg-secondary)',
                 borderRadius: 8,
                 border: '1px solid var(--color-border)',
                 display: 'flex',
@@ -2500,10 +2500,10 @@ export default function CommandCenter({ view }: { view?: string }) {
                 gap: 6
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>Reroute Option: Saudi KSA Direct (Yanbu Bypass)</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>Reroute Option: Saudi KSA Direct (Yanbu Bypass)</span>
                   <span className="badge risk-bg-moderate risk-moderate" style={{ fontSize: 8 }}>Rank 2</span>
                 </div>
-                <p style={{ fontSize: 11, color: '#94a3b8' }}>
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                   Reroutes East-West pipeline flow to bypass Bab-el-Mandeb. Volume: <strong>0.8 mbpd</strong>. Compatibility: 94%. Freight premium: +$1.20/bbl.
                 </p>
               </div>
@@ -2522,17 +2522,17 @@ export default function CommandCenter({ view }: { view?: string }) {
   function renderSupplierComplianceCard() {
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>OPTIMIZATION CRITERIA WEIGHTS</span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: '#e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+        <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>OPTIMIZATION CRITERIA WEIGHTS</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: 'var(--color-text-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>Grade Compatibility Match:</span>
-            <span style={{ color: '#10b981', fontWeight: 700 }}>98.2%</span>
+            <span style={{ color: 'var(--color-emerald)', fontWeight: 700 }}>98.2%</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>VLCC Tanker Pool Capacity:</span>
             <span>14/15 Available</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>Sikka Port Congestion wait:</span>
             <span style={{ color: '#ef4444' }}>1.4 Days</span>
           </div>
