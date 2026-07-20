@@ -134,10 +134,8 @@ export default function CommandCenter({ view }: { view?: string }) {
     syncHash()
     
     // Setup WS toast alerts
-    const cleanHost = API_BASE_URL.replace(/^https?:\/\//, '')
-    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = `${wsProto}://${cleanHost}/ws/alerts`
-    const ws = new WebSocket(wsUrl)
+    const wsUrl = window.location.origin.replace('http', 'ws')
+    const ws = new WebSocket(`${wsUrl}/ws/alerts`)
     
     ws.onmessage = (event) => {
       try {
@@ -624,7 +622,7 @@ export default function CommandCenter({ view }: { view?: string }) {
   // Content 3: Geospatial Map Content
   function renderPanelMapContent() {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minHeight: 180 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minHeight: 0 }}>
         {/* Layer checkboxes row */}
         <div style={{ display: 'flex', gap: 8, fontSize: 8, color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
           {['Routes', 'Ports', 'Incidents', 'Chokepoints', 'Suppliers'].map((lbl, idx) => (
@@ -1873,7 +1871,7 @@ export default function CommandCenter({ view }: { view?: string }) {
   // Live System Terminal Card
   function renderLiveTerminalLogsCard() {
     return (
-      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, height: 260, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Terminal size={14} color="#10b981" />
@@ -1938,8 +1936,8 @@ export default function CommandCenter({ view }: { view?: string }) {
           gap: 2,
           boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.9)'
         }}>
-          {systemLogs.filter(l => l.trim().length > 0).length > 0 ? (
-            systemLogs.filter(l => l.trim().length > 0).map((log, idx) => {
+          {systemLogs.length > 0 ? (
+            systemLogs.map((log, idx) => {
               // Color-code log lines by prefix
               const isAgent1     = log.includes('[AGENT 1')
               const isAgent2to5  = /\[AGENT [2-5]/.test(log)
