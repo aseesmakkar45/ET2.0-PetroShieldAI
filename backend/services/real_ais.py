@@ -18,62 +18,8 @@ _api_key_in_use: str = ""
 
 
 def get_real_vessels() -> List[Dict[str, Any]]:
-    """Return all vessels currently tracked from the live AIS stream, with a resilient fallback."""
-    vessels = list(real_vessel_cache.values())
-    
-    # Resilient Fallback for Hackathon Demo:
-    # If aisstream.io times out, drops connection, or is empty, inject guaranteed LIVE vessels.
-    if not vessels:
-        fallback_vessels = [
-            {
-                "mmsi": "LIVE9901",
-                "name": "OASIS GLORY",
-                "vessel_type": "VLCC",
-                "flag": "Singapore",
-                "dwt": 320000,
-                "current_position": {"lat": 18.5, "lng": 62.0},
-                "speed_knots": 14.5,
-                "heading": 85.0,
-                "origin_port": "Ras Tanura",
-                "destination_port": "Sikka Port",
-                "cargo": "Crude Oil",
-                "data_source": "LIVE",
-                "eta": "In Transit"
-            },
-            {
-                "mmsi": "LIVE9902",
-                "name": "RED SEA EXPLORER",
-                "vessel_type": "Suezmax",
-                "flag": "Panama",
-                "dwt": 150000,
-                "current_position": {"lat": 14.2, "lng": 42.5},
-                "speed_knots": 12.0,
-                "heading": 320.0,
-                "origin_port": "Jeddah",
-                "destination_port": "Suez",
-                "cargo": "Crude Oil",
-                "data_source": "LIVE",
-                "eta": "In Transit"
-            },
-            {
-                "mmsi": "LIVE9903",
-                "name": "GULF PIONEER",
-                "vessel_type": "Aframax",
-                "flag": "Marshall Islands",
-                "dwt": 110000,
-                "current_position": {"lat": 24.5, "lng": 58.2},
-                "speed_knots": 15.2,
-                "heading": 135.0,
-                "origin_port": "Fujairah",
-                "destination_port": "Mumbai",
-                "cargo": "Crude Oil",
-                "data_source": "LIVE",
-                "eta": "In Transit"
-            }
-        ]
-        return fallback_vessels
-        
-    return vessels
+    """Return all vessels currently tracked from the live AIS stream."""
+    return list(real_vessel_cache.values())
 
 
 def get_vessel_count() -> int:
