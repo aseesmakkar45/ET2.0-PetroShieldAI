@@ -2804,9 +2804,7 @@ export default function CommandCenter({ view }: { view?: string }) {
       case 'reports-insights':
       case '#reports-insights':
         return renderReportsInsights()
-      case 'settings':
-      case '#settings':
-        return renderSettingsView()
+
       default:
         return renderOverview()
     }
