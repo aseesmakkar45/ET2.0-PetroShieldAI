@@ -2021,7 +2021,7 @@ export default function CommandCenter({ view }: { view?: string }) {
   function renderMapCard(height: number | string = 580, layers?: Record<string, boolean>) {
     const vesselsCount = mapData?.vessels?.length ?? 45
     return (
-      <div className="glass-card" style={{ height: typeof height === 'number' ? `${height}px` : height, overflow: 'hidden', position: 'relative' }}>
+      <div className="glass-card" style={{ height: typeof height === 'number' ? `${height}px` : height, flex: height === '100%' ? 1 : 'none', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <div style={{
           position: 'absolute',
           top: 12, left: 12,
@@ -2848,7 +2848,7 @@ export default function CommandCenter({ view }: { view?: string }) {
 
         {/* Right Side: Map (Central Focus) + Live System Terminal */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
-          <div style={{ flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {renderMapCard('100%', mapLayers)}
           </div>
           {renderLiveTerminalLogsCard()}
