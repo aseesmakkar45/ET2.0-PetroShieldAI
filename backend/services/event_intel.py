@@ -1,12 +1,12 @@
 """
-Event Intelligence Service — uses Gemini to convert raw text or article URLs into
+Event Intelligence Service — uses Groq to convert raw text or article URLs into
 structured EventIntelligence objects. This is the brain of Agent 1.
 
 Design principles:
-- Gemini ONLY performs understanding and extraction — never numerical forecasting
-- All numerical outputs (probability, supply_loss) are Gemini's qualitative estimates
+- Groq ONLY performs understanding and extraction — never numerical forecasting
+- All numerical outputs (probability, supply_loss) are Groq's qualitative estimates
   converted to ranges, then used as INPUTS to the deterministic scoring engine
-- Falls back to enhanced keyword extraction when Gemini is unavailable
+- Falls back to enhanced keyword extraction when Groq is unavailable
 - Supports both raw text signals and live article URLs
 """
 import re
@@ -21,8 +21,8 @@ from dataclasses import dataclass, field, asdict
 
 logger = logging.getLogger("uvicorn.error")
 
-# ── Gemini model to use for event understanding ──────────────────────────────
-_GEMINI_MODEL = "gemini-2.0-flash"
+# ── Groq model to use for event understanding ──────────────────────────────
+_GROQ_MODEL = "groq-2.0-flash"
 
 # ── Known entity vocabularies for enhanced fallback extraction ────────────────
 _CHOKEPOINTS = {
@@ -112,14 +112,14 @@ class EventIntelligence:
     chokepoints: List[str] = field(default_factory=list)     # KG node IDs
     shipping_routes: List[str] = field(default_factory=list)
     sanctions: List[str] = field(default_factory=list)
-    conflict_level: float = 0.0          # 0–10 scale extracted by Gemini
-    expected_duration_days: int = 30     # Gemini's estimate
-    predicted_supply_loss_mbpd: float = 0.0   # Gemini's estimate (used as hint only)
-    confidence: float = 0.5              # Gemini's extraction confidence
+    conflict_level: float = 0.0          # 0–10 scale extracted by Groq
+    expected_duration_days: int = 30     # Groq's estimate
+    predicted_supply_loss_mbpd: float = 0.0   # Groq's estimate (used as hint only)
+    confidence: float = 0.5              # Groq's extraction confidence
     supporting_evidence: List[str] = field(default_factory=list)
     uncertainties: List[str] = field(default_factory=list)
     raw_text_used: str = ""              # The source text that was analyzed
-    extraction_method: str = "UNKNOWN"  # GEMINI | KEYWORD_FALLBACK
+    extraction_method: str = "UNKNOWN"  # GROQ | KEYWORD_FALLBACK
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -181,7 +181,7 @@ def fetch_article_content(url: str, timeout: int = 12) -> str:
         return ""
 
 
-def _extract_with_gemini(text: str, api_key: str) -> Optional[EventIntelligence]:
+def _extract_with_groq(text: str, api_key: str) -> Optional[EventIntelligence]:
     """
     Use Groq to extract structured EventIntelligence from text.
     """
@@ -220,7 +220,7 @@ Expected JSON format:
 
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",
             temperature=0.0,
             max_tokens=500
         )
@@ -255,20 +255,20 @@ Expected JSON format:
             supporting_evidence=data.get("supporting_evidence", []),
             uncertainties=data.get("uncertainties", []),
             raw_text_used=text[:500],
-            extraction_method="GEMINI",
+            extraction_method="GROQ",
         )
         logger.info(
-            f"[EventIntel] Gemini extraction successful: "
+            f"[EventIntel] Groq extraction successful: "
             f"event_type={intel.event_type}, conflict_level={intel.conflict_level}, "
             f"chokepoints={intel.chokepoints}, suppliers={intel.suppliers}"
         )
         return intel
 
     except json.JSONDecodeError as e:
-        logger.error(f"[EventIntel] Gemini returned non-JSON response: {e}")
+        logger.error(f"[EventIntel] Groq returned non-JSON response: {e}")
         return None
     except Exception as e:
-        logger.error(f"[EventIntel] Gemini extraction failed: {e}")
+        logger.error(f"[EventIntel] Groq extraction failed: {e}")
         return None
 
 
@@ -296,13 +296,13 @@ def _map_suppliers(raw_list: List[str]) -> List[str]:
 
 def _extract_with_keywords(text: str) -> EventIntelligence:
     """
-    Enhanced keyword-based extraction — used ONLY as fallback when Gemini is unavailable.
+    Enhanced keyword-based extraction — used ONLY as fallback when Groq is unavailable.
     Far richer than the old keyword detection in risk_intel.py:
     - Detects all entity types
     - Counts evidence signals
     - Estimates conflict level from signal density
     - Maps to KG node IDs
-    This is labelled clearly as KEYWORD_FALLBACK so auditors know Gemini was unavailable.
+    This is labelled clearly as KEYWORD_FALLBACK so auditors know Groq was unavailable.
     """
     text_lower = text.lower()
 
@@ -384,7 +384,7 @@ def _extract_with_keywords(text: str) -> EventIntelligence:
         confidence=round(confidence, 2),
         supporting_evidence=evidence,
         uncertainties=[
-            "Gemini API unavailable — extraction based on keyword analysis only.",
+            "Groq API unavailable — extraction based on keyword analysis only.",
             "Confidence reduced: qualitative context not assessed."
         ],
         raw_text_used=text[:500],
@@ -407,7 +407,7 @@ def extract_event_intelligence(
 
     Args:
         raw_signal: Either a plain text signal OR a URL (auto-detected)
-        api_key: Gemini API key. Falls back to keyword extraction if empty or API fails.
+        api_key: Groq API key. Falls back to keyword extraction if empty or API fails.
 
     Returns:
         EventIntelligence: Structured intelligence ready for downstream agents.
@@ -425,15 +425,15 @@ def extract_event_intelligence(
             source_text = raw_signal  # Use URL as text hint
 
     # Resolve API Key dynamically from rotation pool if not provided
-    from config import get_gemini_api_key
-    resolved_key = api_key or get_gemini_api_key() or ""
+    from config import get_groq_api_key
+    resolved_key = api_key or get_groq_api_key() or ""
 
-    # Try Gemini extraction first
+    # Try Groq extraction first
     if resolved_key:
-        result = _extract_with_gemini(source_text, resolved_key)
+        result = _extract_with_groq(source_text, resolved_key)
         if result is not None:
             return result
-        logger.warning("[EventIntel] Gemini extraction failed — falling back to keyword extraction.")
+        logger.warning("[EventIntel] Groq extraction failed — falling back to keyword extraction.")
 
     # Fallback to enhanced keyword extraction
     return _extract_with_keywords(source_text)

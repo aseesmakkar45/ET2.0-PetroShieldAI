@@ -32,18 +32,18 @@ async def simulate_signal(
 
 
 @router.post("/signals/parse-news")
-async def parse_news_with_gemini(
+async def parse_news_with_groq(
     raw_signal: str = Body(..., embed=True)
 ):
-    """Stage 1: Prompts Gemini to parse news text or web URLs and extract semantic context."""
-    from agents.gemini_prompt_agent import gemini_prompting_agent
-    return gemini_prompting_agent.parse_news_article(raw_signal)
+    """Stage 1: Prompts Groq to parse news text or web URLs and extract semantic context."""
+    from agents.groq_prompt_agent import groq_prompting_agent
+    return groq_prompting_agent.parse_news_article(raw_signal)
 
 
 @router.post("/signals/audit-system")
-async def audit_system_with_gemini():
-    """Stage 2: Prompts Gemini to perform mathematical, sanctions, and logistics audits."""
-    from agents.gemini_prompt_agent import gemini_prompting_agent
+async def audit_system_with_groq():
+    """Stage 2: Prompts Groq to perform mathematical, sanctions, and logistics audits."""
+    from agents.groq_prompt_agent import groq_prompting_agent
     state = get_active_state()
     state_summary = state.to_dict() if state else {
         "overall_risk_score": 84.5,
@@ -52,7 +52,7 @@ async def audit_system_with_gemini():
         "procurement_rank1": "Russian Urals via Baltic (0.7 mbpd)",
         "spr_release_rate": 1.15
     }
-    return gemini_prompting_agent.audit_system_state(state_summary)
+    return groq_prompting_agent.audit_system_state(state_summary)
 
 
 @router.get("/prices")

@@ -133,7 +133,7 @@ def _compute_dynamic_scenario_configs(
     p_severe = round(1.0 - p_optimistic - p_base, 2)
 
     # ── Dynamic durations ─────────────────────────────────────────────────────
-    # Base duration from Gemini extraction; scenario multipliers scale from it
+    # Base duration from Groq extraction; scenario multipliers scale from it
     base_duration = max(7, expected_duration)
     duration_optimistic = max(5, int(base_duration * 0.35))
     duration_base = base_duration

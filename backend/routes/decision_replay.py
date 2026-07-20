@@ -16,7 +16,7 @@ async def get_decision_replay():
             "timestamp": state.timestamp,
             "decision_trace": state.decision_trace,
             "execution_log": state.execution_log,
-            "gemini_audit": state.gemini_audit,
-            "gemini_risk_validation": state.gemini_risk_validation
+            "groq_audit": state.groq_audit,
+            "groq_risk_validation": state.groq_risk_validation
         }
     return {"decision_trace": []}

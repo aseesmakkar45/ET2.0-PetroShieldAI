@@ -8,7 +8,7 @@ import re
 import os
 
 from services.pdf_generator import generate_executive_report_pdf
-from agents.gemini_prompt_agent import gemini_prompting_agent
+from agents.groq_prompt_agent import groq_prompting_agent
 from agents.orchestrator import get_active_state
 from database import get_db, SessionLocal, SimulatedScenario
 
@@ -23,12 +23,12 @@ async def get_report_history(db: Session = Depends(get_db)):
 
 
 @router.post("/reports/generate")
-async def generate_gemini_report(
+async def generate_groq_report(
     report_type: str = Query(default="Weekly Supply Chain Risk Assessment"),
     time_range: str = Query(default="Last 7 Days")
 ):
     """
-    Stage 3: Prompts Gemini to generate a structured scenario report in the required JSON format.
+    Stage 3: Prompts Groq to generate a structured scenario report in the required JSON format.
     """
     state = get_active_state()
     scenario_data = state.to_dict() if state else {
@@ -38,7 +38,7 @@ async def generate_gemini_report(
         "spr_release_rate": 1.15
     }
     
-    report_json = gemini_prompting_agent.generate_scenario_report(
+    report_json = groq_prompting_agent.generate_scenario_report(
         scenario_data=scenario_data,
         report_type=report_type,
         time_range=time_range

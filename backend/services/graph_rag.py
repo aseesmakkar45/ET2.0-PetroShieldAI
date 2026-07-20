@@ -5,7 +5,7 @@ and policy documents, and generates grounded situation reports.
 UPGRADED: Rule-based `if "jamnagar"` synthesizer replaced with:
   - Genuine KG metadata synthesis
   - Historical event retrieval from KG
-  - Gemini-powered evidence synthesis (with fallback)
+  - Groq-powered evidence synthesis (with fallback)
 """
 import os
 import re

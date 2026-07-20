@@ -2,9 +2,9 @@
 Risk Intelligence Agent (Agent 1) – continuously monitors, scores, and extracts
 geospatial evidence for supply chain disruption risks.
 
-UPGRADED: Keyword detection replaced with Gemini-powered EventIntelligence extraction.
+UPGRADED: Keyword detection replaced with Groq-powered EventIntelligence extraction.
 Risk scoring is now driven by:
-  - EventIntelligence.conflict_level (from Gemini)
+  - EventIntelligence.conflict_level (from Groq)
   - Live Brent price anomaly (from EIA)
   - Supplier dependency ratio (from Knowledge Graph)
   - AIS anomaly count (from real AIS data)
@@ -167,9 +167,9 @@ def _compute_estimated_supply_impact(
         supplier_volume = india_daily_imports * india_share
         total_affected_capacity += supplier_volume
 
-    # Scale by Gemini's predicted_supply_loss if available
+    # Scale by Groq's predicted_supply_loss if available
     if intel.predicted_supply_loss_mbpd > 0:
-        # Gemini gives a global estimate; scale to India's proportion
+        # Groq gives a global estimate; scale to India's proportion
         india_fraction = total_affected_capacity / 4.5 if total_affected_capacity > 0 else 0.3
         estimated = min(intel.predicted_supply_loss_mbpd * india_fraction, total_affected_capacity)
     else:
@@ -191,19 +191,19 @@ def run_risk_intel_agent(
 ) -> RiskSignal:
     """
     Run Agent 1: Analyzes raw signals (text or URL), extracts structured
-    EventIntelligence via Gemini, queries Graph-RAG/KG, and returns a
+    EventIntelligence via Groq, queries Graph-RAG/KG, and returns a
     structured RiskSignal with explainability and geospatial data.
 
-    REPLACED: Keyword detection → Gemini EventIntelligence extraction
+    REPLACED: Keyword detection → Groq EventIntelligence extraction
     REPLACED: Hardcoded scalars → Data-driven risk scoring
     REPLACED: Hardcoded supply impact → KG supplier capacity computation
     """
     G = get_graph()
-    api_key = get_gemini_api_key() or ""
+    api_key = get_groq_api_key() or ""
 
     print(f"[AGENT 1 - RiskIntel] Starting event understanding for signal: '{raw_signal[:120]}...'")
 
-    # ── Step 1: Extract structured EventIntelligence (Gemini or keyword fallback) ──
+    # ── Step 1: Extract structured EventIntelligence (Groq or keyword fallback) ──
     intel = extract_event_intelligence(raw_signal, api_key)
     print(
         f"[AGENT 1 - RiskIntel] EventIntelligence extracted via {intel.extraction_method}: "
@@ -212,7 +212,7 @@ def run_risk_intel_agent(
     )
 
     # ── Step 2: Resolve KG entities from EventIntelligence ────────────────────
-    # Merge Gemini-detected entities with KG graph traversal
+    # Merge Groq-detected entities with KG graph traversal
     affected_chokepoints = list(set(intel.chokepoints))
     affected_suppliers = list(set(intel.suppliers))
     affected_corridors = []
@@ -268,10 +268,10 @@ def run_risk_intel_agent(
     # ── Step 5: Data-driven Bayesian Risk Scoring ─────────────────────────────
     # All feature values now derived from data, not keywords
 
-    # F1: Geopolitical tension — from Gemini's conflict_level (0–10 → 0–1)
+    # F1: Geopolitical tension — from Groq's conflict_level (0–10 → 0–1)
     geopolitical_tension = intel.conflict_level / 10.0
 
-    # F2: Sanctions severity — from Gemini's sanctions list
+    # F2: Sanctions severity — from Groq's sanctions list
     sanctions_severity = min(1.0, len(intel.sanctions) * 0.30) if intel.sanctions else 0.10
 
     # F3: Price anomaly — from live EIA Brent vs. 30d MA
@@ -322,7 +322,7 @@ def run_risk_intel_agent(
     # Blend: 75% evidence, 25% prior (stronger evidence weighting than old 70/30)
     composite_score = (raw_score * 0.75 + prior * 0.25) * 100
 
-    # Weight by Gemini extraction confidence
+    # Weight by Groq extraction confidence
     confidence_adjustment = 0.8 + (intel.confidence * 0.2)  # 0.8–1.0 multiplier
     composite_score = composite_score * confidence_adjustment
 
