@@ -98,32 +98,7 @@ export default function CommandCenter({ view }: { view?: string }) {
     }
   }, [systemLogs])
 
-  useEffect(() => {
-    // Fetch initial AIS key status
-    api.get('/api/settings/ais')
-      .then(res => {
-        if (res.data.has_key) {
-          setHasRealAisKey(true)
-          setAisKeyInput(res.data.masked_key)
-        }
-      })
-      .catch(err => console.error("Error loading settings:", err))
-  }, [])
-
-  const saveAisKey = () => {
-    setAisSaveStatus('Saving...')
-    api.post('/api/settings/ais', { api_key: aisKeyInput })
-      .then(res => {
-        setAisSaveStatus('Saved!')
-        setHasRealAisKey(!!aisKeyInput)
-        queryClient.invalidateQueries({ queryKey: ['map'] })
-        setTimeout(() => setAisSaveStatus(''), 2000)
-      })
-      .catch(err => {
-        setAisSaveStatus('Error saving key')
-        setTimeout(() => setAisSaveStatus(''), 2000)
-      })
-  }
+  // AIS Key configuration removed as part of settings removal
 
   useEffect(() => {
     // Listen to hash change
