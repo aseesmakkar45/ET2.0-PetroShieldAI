@@ -1,34 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Lock, User, Eye, EyeOff, AlertTriangle, Zap } from 'lucide-react'
 
-const DEMO_CREDENTIALS = [
-  { role: 'Admin', email: 'admin@petroshield.ai', password: 'admin123' },
-  { role: 'Analyst', email: 'analyst@petroshield.ai', password: 'analyst123' },
-  { role: 'Policy Maker', email: 'policy@petroshield.ai', password: 'policy123' },
-]
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+type DemoAccount = { role: string; email: string }
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('admin@petroshield.ai')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([])
+
+  // Fetch demo account emails from the backend (no passwords exposed)
+  useEffect(() => {
+    fetch(`${API_URL}/api/auth/demo-accounts`)
+      .then(r => r.json())
+      .then(data => setDemoAccounts(data))
+      .catch(() => {
+        // Fallback: show roles without auto-fill if backend is unavailable
+        setDemoAccounts([
+          { role: 'Admin', email: 'admin@petroshield.ai' },
+          { role: 'Analyst', email: 'analyst@petroshield.ai' },
+          { role: 'Policy Maker', email: 'policy@petroshield.ai' },
+        ])
+      })
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    await new Promise(r => setTimeout(r, 1200)) // simulate auth
-    const valid = DEMO_CREDENTIALS.some(c => c.email === email && c.password === password)
-    if (valid) {
-      router.push('/dashboard')
-    } else {
-      setError('Invalid credentials. Use demo accounts below.')
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        // Store role in session storage (no sensitive data)
+        sessionStorage.setItem('ps_role', data.role)
+        sessionStorage.setItem('ps_user', data.name)
+        router.push('/dashboard')
+      } else {
+        setError('Invalid credentials. Please try a demo account below.')
+        setLoading(false)
+      }
+    } catch {
+      setError('Cannot connect to server. Please try again.')
       setLoading(false)
     }
   }
@@ -150,22 +178,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  fontSize: 13,
-                  color: '#fca5a5',
-                }}
-              >
-                {error}
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    color: '#fca5a5',
+                  }}
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <motion.button
               type="submit"
@@ -195,16 +226,16 @@ export default function LoginPage() {
 
           <div className="divider" />
 
-          {/* Demo accounts */}
+          {/* Demo accounts — emails only, passwords never shown */}
           <div>
             <p style={{ fontSize: 11, color: '#334155', fontWeight: 600, letterSpacing: '0.5px', marginBottom: 10, textAlign: 'center' }}>
-              DEMO ACCOUNTS
+              DEMO ACCOUNTS — click to select
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {DEMO_CREDENTIALS.map(c => (
+              {demoAccounts.map(c => (
                 <button
                   key={c.role}
-                  onClick={() => { setEmail(c.email); setPassword(c.password) }}
+                  onClick={() => setEmail(c.email)}
                   style={{
                     background: 'rgba(59, 130, 246, 0.06)',
                     border: '1px solid rgba(59, 130, 246, 0.12)',
@@ -224,6 +255,9 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
+            <p style={{ fontSize: 10, color: '#1e293b', textAlign: 'center', marginTop: 10 }}>
+              Contact your administrator for access credentials
+            </p>
           </div>
         </div>
       </motion.div>
