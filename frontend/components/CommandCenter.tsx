@@ -1648,60 +1648,6 @@ export default function CommandCenter({ view }: { view?: string }) {
     )
   }
 
-  // 10. SYSTEM SETTINGS VIEW
-  function renderSettingsView() {
-    return (
-      <div className="glass-card" style={{ padding: 18, maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--color-text-primary)', fontWeight: 700 }}>NECC SYSTEM SETTINGS</span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ color: 'var(--color-text-primary)' }}>FRED API Data Feed Endpoint</label>
-            <input type="text" readOnly value="https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: '6px 10px', borderRadius: 6, color: '#2563eb', outline: 'none' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ color: 'var(--color-text-primary)' }}>Orchestration Model Temperature</label>
-            <input type="text" readOnly value="0.0 (Deterministic)" style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: '6px 10px', borderRadius: 6, color: 'var(--color-text-secondary)', outline: 'none' }} />
-          </div>
-
-          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ color: 'var(--color-text-primary)', fontWeight: 700 }}>REAL-TIME AIS VESSEL STREAM CONNECTION</label>
-            <span style={{ fontSize: 10, color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
-              Connect live global ship coordinates. Enter your free key from <strong>aisstream.io</strong>. If empty, the system falls back to the high-fidelity simulator.
-            </span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input 
-                type="text" 
-                placeholder="Enter AISStream.io API Key..." 
-                value={aisKeyInput}
-                onChange={(e) => setAisKeyInput(e.target.value)}
-                style={{ 
-                  flex: 1, 
-                  background: 'var(--color-bg-primary)', 
-                  border: '1px solid var(--color-border)', 
-                  padding: '6px 10px', 
-                  borderRadius: 6, 
-                  color: 'var(--color-text-primary)', 
-                  outline: 'none' 
-                }} 
-              />
-              <button 
-                onClick={saveAisKey}
-                className="btn-primary"
-                style={{ padding: '6px 14px', borderRadius: 6, fontSize: 11 }}
-              >
-                {aisSaveStatus || "Save Key"}
-              </button>
-            </div>
-            {hasRealAisKey && (
-              <span style={{ fontSize: 9, color: 'var(--color-risk-low)', fontWeight: 600 }}>
-                ✓ Real-time AIS stream listener is active.
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   // SVG Gauge Card (Energy Resilience Index)
   function renderEnergyResilienceIndexCard(score: number) {
