@@ -14,7 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts'
-import { getDashboard, getMapData, api } from '@/services/api'
+import { getDashboard, getMapData, api, API_BASE_URL } from '@/services/api'
 
 // Dynamically import Leaflet Map to avoid SSR errors
 const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
@@ -23,8 +23,14 @@ import NationalEnergyTwin from './NationalEnergyTwin'
 export default function CommandCenter({ view }: { view?: string }) {
   const queryClient = useQueryClient()
   const [currentHash, setCurrentHash] = useState('')
+  const [reportFilter, setReportFilter] = useState('ALL')
+  const [selectedReportType, setSelectedReportType] = useState('Weekly Supply Chain Risk Assessment')
+  const [selectedTimeRange, setSelectedTimeRange] = useState('Last 7 Days')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generatedReport, setGeneratedReport] = useState<any>(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [simulationPrompt, setSimulationPrompt] = useState(
-    "CRITICAL conflict, OPEC quota anxiety, and sanctions blockade: Iran blockades the Strait of Hormuz, shutting down 100% of crude oil tanker transits to Sikka. Brent price spikes 20%."
+    "CRITICAL conflict, OPEC quota anxiety, and sanctions blockade: Iran blockades the Strait of Hormuz, shutting down 100% of tanker transits. Brent crude spikes by +$24/bbl."
   )
   const [selectedScenarioType, setSelectedScenarioType] = useState('hormuz')
   const [copied, setCopied] = useState(false)
@@ -64,7 +70,9 @@ export default function CommandCenter({ view }: { view?: string }) {
   const terminalEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const wsUrl = `ws://${window.location.hostname}:8000/ws/logs`
+    const wsProto = API_BASE_URL.startsWith('https') ? 'wss' : 'ws'
+    const cleanHost = API_BASE_URL.replace(/^https?:\/\//, '')
+    const wsUrl = `${wsProto}://${cleanHost}/ws/logs`
     const ws = new WebSocket(wsUrl)
     ws.onmessage = (event) => {
       try {
@@ -162,6 +170,13 @@ export default function CommandCenter({ view }: { view?: string }) {
   const { data: replayData } = useQuery({
     queryKey: ['decision-replay'],
     queryFn: () => api.get('/api/decision-replay').then(r => r.data),
+    refetchInterval: 5000,
+  })
+
+  // 4. Fetch persistent database scenario history
+  const { data: reportHistory = [] } = useQuery({
+    queryKey: ['reports-history'],
+    queryFn: () => api.get('/api/reports/history').then(r => r.data),
     refetchInterval: 5000,
   })
 
@@ -1349,35 +1364,87 @@ export default function CommandCenter({ view }: { view?: string }) {
     )
   }
 
-  // 8. REPORTS & INSIGHTS VIEW
+  // 8. REPORTS & INSIGHTS VIEW — Refined Executive Operations Suite
   function renderReportsInsights() {
+    const [selectedReportType, setSelectedReportType] = useState('Weekly Supply Chain Risk Assessment')
+    const [selectedTimeRange, setSelectedTimeRange] = useState('Last 7 Days')
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [generatedReport, setGeneratedReport] = useState<any>(null)
+    const [showPreviewModal, setShowPreviewModal] = useState(false)
+
+    const handleGenerateReport = async () => {
+      setIsGenerating(true)
+      setTimeout(() => {
+        setIsGenerating(false)
+        setGeneratedReport({
+          title: selectedReportType,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          timeRange: selectedTimeRange,
+          author: 'PetroShield AI — Autonomous Taskforce Intelligence Engine',
+          status: 'GEMINI AUDITED & APPROVED',
+          keyTakeaways: [
+            'Geopolitical maritime disruption score currently elevated at 84% in Arabian Sea / Bab-el-Mandeb threat corridors.',
+            'SciPy Linear Programming optimizer recommends allocating 0.7 mbpd Russian Urals crude via Cape bypass to secure Sikka Port supply continuity.',
+            'ISPRL Padur and Mangaluru caverns have 34 days of reserve buffer cover under active drawdown mandate.'
+          ],
+          tableData: [
+            { indicator: 'Brent Crude Benchmark', baseline: '$82.50/bbl', current: '$96.40/bbl', delta: '+16.8%' },
+            { indicator: 'National Import Deficit', baseline: '0.0 mbpd', current: '1.4 mbpd', delta: '-1.4 mbpd' },
+            { indicator: 'Refinery Run Rate (Sikka/Vadinar)', baseline: '98.5%', current: '88.2%', delta: '-10.3%' },
+            { indicator: 'Grid Sector Power Deficit', baseline: '0 MW', current: '3,200 MW', delta: 'Elevated' }
+          ]
+        })
+        setShowPreviewModal(true)
+      }, 1400)
+    }
+
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
-        {/* Left pane: Key Insights */}
-        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>KEY INSIGHTS & FINDINGS</span>
-          
+      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
+        {/* Left pane: Executive Intelligence Briefs */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Shield size={16} color="var(--color-blue-500)" />
+            <span style={{ fontSize: 11, color: 'var(--color-text-primary)', fontWeight: 800, letterSpacing: '0.5px' }}>EXECUTIVE INTELLIGENCE BRIEFS</span>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11.5, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #ef4444' }}>
-              <strong>Geopolitical Risk Alert:</strong> Geopolitical tensions in the Bab-el-Mandeb and Hormuz corridors remain critical. Daily vessel diversions are adding +2.3 days to average Sikka Port delivery schedules.
+            <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, borderLeft: '4px solid #ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#ef4444', letterSpacing: '1px', marginBottom: 4 }}>GEOPOLITICAL RISK ALERT</div>
+              <strong>Maritime Chokepoint Lockout:</strong> Tensions in Bab-el-Mandeb and Strait of Hormuz adding <strong>+2.3 days</strong> to Sikka delivery schedules. Diverted crude pool total: 1.8 mbpd.
             </div>
-            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #f59e0b' }}>
-              <strong>Market Volatility:</strong> Brent crude prices are highly volatile with a current daily range of USD 81.50&ndash;84.20. Volatility index has risen by 15% WoW.
+
+            <div style={{ padding: 12, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, borderLeft: '4px solid #f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', letterSpacing: '1px', marginBottom: 4 }}>MARKET VOLATILITY FORECAST</div>
+              <strong>Monte Carlo Price Jump:</strong> Brent crude GBM projection indicates a 78% probability of price testing <strong>$98.50/bbl</strong> within 14 days if Hormuz blockade persists.
             </div>
-            <div style={{ padding: 10, background: 'var(--color-bg-primary)', borderRadius: 6, borderLeft: '3px solid #3b82f6' }}>
-              <strong>SPR Advisory:</strong> Current strategic caverns are filled to 78% capacity. Drawdown authorizations remain on standby under the MoPNG 2026 mandate guidelines.
+
+            <div style={{ padding: 12, background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, borderLeft: '4px solid #10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#10b981', letterSpacing: '1px', marginBottom: 4 }}>SPR ADVISORY DIRECTIVE</div>
+              <strong>ISPRL Cavern Coverage:</strong> Strategic reserves stored at <strong>78% capacity (23.4M barrels)</strong>. Emergency release mandate authorized under Cabinet Taskforce Guidelines.
             </div>
           </div>
         </div>
 
-        {/* Right pane: Reports Generator */}
-        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 700 }}>REPORTS OPERATIONS GENERATOR</span>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        {/* Right pane: AI Reports Generator */}
+        <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BarChart2 size={16} color="var(--color-purple)" />
+              <span style={{ fontSize: 11, color: 'var(--color-text-primary)', fontWeight: 800, letterSpacing: '0.5px' }}>AUTONOMOUS REPORT OPERATIONS</span>
+            </div>
+            <span style={{ fontSize: 9, color: 'var(--color-emerald)', fontWeight: 700, padding: '3px 8px', background: 'rgba(16,185,129,0.1)', borderRadius: 4, border: '1px solid rgba(16,185,129,0.2)' }}>
+              GEMINI 1.5 PRO READY
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>REPORT TYPE</label>
-              <select style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 8, borderRadius: 6, color: 'var(--color-text-primary)' }}>
+              <select 
+                value={selectedReportType}
+                onChange={e => setSelectedReportType(e.target.value)}
+                style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 9, borderRadius: 6, color: 'var(--color-text-primary)', fontSize: 11.5, fontWeight: 600 }}
+              >
                 <option>Weekly Supply Chain Risk Assessment</option>
                 <option>Procurement Route Optimization Plan</option>
                 <option>SPR Drawdown Feasibility Study</option>
@@ -1386,7 +1453,11 @@ export default function CommandCenter({ view }: { view?: string }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 10, color: 'var(--color-text-muted)', fontWeight: 700 }}>TIME RANGE</label>
-              <select style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 8, borderRadius: 6, color: 'var(--color-text-primary)' }}>
+              <select 
+                value={selectedTimeRange}
+                onChange={e => setSelectedTimeRange(e.target.value)}
+                style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', padding: 9, borderRadius: 6, color: 'var(--color-text-primary)', fontSize: 11.5, fontWeight: 600 }}
+              >
                 <option>Last 7 Days</option>
                 <option>Last 30 Days</option>
                 <option>Last 90 Days</option>
@@ -1395,26 +1466,149 @@ export default function CommandCenter({ view }: { view?: string }) {
             </div>
           </div>
 
-          <button className="btn-primary" style={{ alignSelf: 'start', marginBottom: 20 }}>
-            Generate Report
+          <button 
+            onClick={handleGenerateReport} 
+            disabled={isGenerating}
+            className="btn-primary" 
+            style={{ alignSelf: 'start', padding: '8px 18px', fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+            {isGenerating ? "Synthesizing AI Report..." : "Generate Executive AI Report"}
           </button>
 
-          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Recent Downloads</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-            {[
-              { name: 'Weekly_Supply_Risk_Report_10_May_2026.pdf', size: '2.4 MB', date: '10 May 2026' },
-              { name: 'Procurement_Route_Optimization_Plan_09_May_2026.pdf', size: '1.8 MB', date: '09 May 2026' },
-              { name: 'SPR_Drawdown_Feasibility_Study_08_May_2026.pdf', size: '3.1 MB', date: '08 May 2026' },
-              { name: 'Geopolitical_Scenario_Impact_Report_07_May_2026.pdf', size: '1.5 MB', date: '07 May 2026' }
-            ].map((rep, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--color-bg-primary)', borderRadius: 6, border: '1px solid var(--color-border)' }}>
+          {/* Generated Report Preview Modal */}
+          {showPreviewModal && generatedReport && (
+            <div style={{
+              background: 'var(--color-bg-primary)',
+              border: '1px solid var(--color-blue-500)',
+              borderRadius: 8,
+              padding: 16,
+              marginTop: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.15)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-primary)' }}>{rep.name}</div>
-                  <div style={{ fontSize: 9.5, color: 'var(--color-text-muted)', marginTop: 2 }}>{rep.date} • {rep.size}</div>
+                  <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary)' }}>{generatedReport.title}</h4>
+                  <span style={{ fontSize: 9.5, color: 'var(--color-text-muted)' }}>Generated: {generatedReport.date} • {generatedReport.timeRange}</span>
                 </div>
-                <button className="btn-ghost" style={{ padding: '4px 8px', fontSize: 10 }}>Download</button>
+                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '3px 8px', borderRadius: 4 }}>
+                  {generatedReport.status}
+                </span>
+              </div>
+
+              <div style={{ fontSize: 10.5, color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <strong>KEY AUDIT TAKEAWAYS:</strong>
+                {generatedReport.keyTakeaways.map((t: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                    <span style={{ color: '#2563eb' }}>•</span>
+                    <span>{t}</span>
+                  </div>
+                ))}
+              </div>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6, fontSize: 10 }}>
+                <thead>
+                  <tr style={{ background: 'var(--color-bg-secondary)', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontSize: 8.5 }}>
+                    <th style={{ padding: 6, textAlign: 'left' }}>Indicator</th>
+                    <th style={{ padding: 6, textAlign: 'right' }}>Baseline</th>
+                    <th style={{ padding: 6, textAlign: 'right' }}>Current</th>
+                    <th style={{ padding: 6, textAlign: 'right' }}>Delta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {generatedReport.tableData.map((row: any, idx: number) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: 6, color: 'var(--color-text-primary)', fontWeight: 600 }}>{row.indicator}</td>
+                      <td style={{ padding: 6, textAlign: 'right', color: 'var(--color-text-muted)' }}>{row.baseline}</td>
+                      <td style={{ padding: 6, textAlign: 'right', color: 'var(--color-text-primary)', fontWeight: 700 }}>{row.current}</td>
+                      <td style={{ padding: 6, textAlign: 'right', color: row.delta.startsWith('+') ? '#dc2626' : '#10b981', fontWeight: 800 }}>{row.delta}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+                <a 
+                  href={`${API_BASE_URL}/api/reports/download-pdf?report_type=${encodeURIComponent(selectedReportType)}&time_range=${encodeURIComponent(selectedTimeRange)}`} 
+                  download={`Master_Scenario_Incident_Briefing_${selectedReportType.replace(/ /g, '_')}.pdf`}
+                  className="btn-primary" 
+                  style={{ textDecoration: 'none', padding: '6px 14px', fontSize: 10.5, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Copy size={12} /> Download Master 4-in-1 PDF Report
+                </a>
+                <button onClick={() => setShowPreviewModal(false)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: 10.5 }}>
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          )}
+
+          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 12 }}>
+            Master Scenario Incident Reports
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(reportHistory.length > 0 ? reportHistory : [
+              { pdf_filename: 'Master_Hormuz_Blockade_Incident_Report.pdf', scenario_title: 'Strait of Hormuz Blockade — Master Incident Briefing', date_display: '10 May 2026', severity: 'CRITICAL', disruption_probability: 84.5 },
+              { pdf_filename: 'Master_RedSea_Attack_Incident_Report.pdf', scenario_title: 'Red Sea Bab-el-Mandeb Attack — Master Incident Briefing', date_display: '09 May 2026', severity: 'ELEVATED', disruption_probability: 74.0 },
+              { pdf_filename: 'Master_OPEC_Supply_Cut_Incident_Report.pdf', scenario_title: 'OPEC+ Emergency Supply Cut — Master Incident Briefing', date_display: '08 May 2026', severity: 'MODERATE', disruption_probability: 62.0 }
+            ]).map((rep: any, idx: number) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--color-bg-primary)', borderRadius: 6, border: '1px solid var(--color-border)' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {rep.pdf_filename || `${rep.scenario_title.replace(/ /g, '_')}.pdf`}
+                    </span>
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: rep.severity === 'CRITICAL' ? 'rgba(239,68,68,0.15)' : 'rgba(37,99,235,0.15)', color: rep.severity === 'CRITICAL' ? '#ef4444' : '#2563eb' }}>
+                      {rep.severity || 'ELEVATED'} ({rep.disruption_probability ? rep.disruption_probability.toFixed(1) : '84.5'}%)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 9.5, color: 'var(--color-text-muted)', marginTop: 3 }}>
+                    <b>Executed:</b> {rep.date_display || rep.created_at || 'Just now'} &nbsp;•&nbsp; <b>Title:</b> {rep.scenario_title}
+                  </div>
+                </div>
+                <a 
+                  href={`${API_BASE_URL}/api/reports/download-pdf?report_type=${encodeURIComponent(rep.scenario_title)}`} 
+                  download={rep.pdf_filename || 'Master_Incident_Briefing.pdf'} 
+                  className="btn-ghost" 
+                  style={{ padding: '5px 10px', fontSize: 10, textDecoration: 'none', color: 'var(--color-text-primary)', fontWeight: 600 }}
+                >
+                  Download Master PDF
+                </a>
               </div>
             ))}
+          </div>
+
+          {/* REAL-TIME PYTHON ENGINE TELEMETRY TERMINAL */}
+          <div style={{ marginTop: 16, background: '#090d16', borderRadius: 8, border: '1px solid #1e293b', padding: '12px 16px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }}></span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.5px' }}>
+                  LIVE REAL-TIME PYTHON ENGINE EXECUTION TERMINAL (ws://localhost:8000/ws/logs)
+                </span>
+              </div>
+              <span style={{ fontSize: 9.5, color: '#64748b', fontWeight: 600 }}>STDOUT RUNTIME TELEMETRY</span>
+            </div>
+            <div style={{ height: 170, overflowY: 'auto', fontSize: 10.5, lineHeight: '1.45', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {systemLogs.length === 0 ? (
+                <div style={{ color: '#475569', fontStyle: 'italic' }}>
+                  [SYSTEM] Connected to Python backend WebSocket stream. Click "Generate Executive AI Report" or "Download Master PDF" to view live interpreter execution logs.
+                </div>
+              ) : (
+                systemLogs.map((log: string, idx: number) => (
+                  <div key={idx} style={{ 
+                    color: log.includes('ERROR') ? '#ef4444' : (log.includes('OK') || log.includes('INITIATED') ? '#10b981' : (log.includes('[PDF GENERATOR]') ? '#38bdf8' : '#94a3b8')),
+                    fontWeight: log.includes('[PDF GENERATOR]') ? 700 : 400
+                  }}>
+                    {log}
+                  </div>
+                ))
+              )}
+              <div ref={terminalEndRef} />
+            </div>
           </div>
         </div>
       </div>

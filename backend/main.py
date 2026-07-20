@@ -16,7 +16,7 @@ from websocket.manager import (
     alert_manager, vessel_manager, log_manager,
     risk_alert_broadcaster, vessel_position_broadcaster
 )
-from routes import dashboard, signals, scenarios, procurement, spr, knowledge_graph, map as map_router, decision_replay
+from routes import dashboard, signals, scenarios, procurement, spr, knowledge_graph, map as map_router, decision_replay, reports
 
 
 # ─── Live Stdout Redirector to WebSocket ──────────────────────────────────────
@@ -291,6 +291,7 @@ app.include_router(spr.router, prefix="/api", tags=["SPR"])
 app.include_router(knowledge_graph.router, prefix="/api", tags=["Knowledge Graph"])
 app.include_router(map_router.router, prefix="/api", tags=["Map"])
 app.include_router(decision_replay.router, prefix="/api", tags=["Decision Replay"])
+app.include_router(reports.router, prefix="/api", tags=["Reports"])
 
 
 # ─── WebSocket Endpoints ──────────────────────────────────────────────────────

@@ -31,6 +31,30 @@ async def simulate_signal(
     return state.to_dict()
 
 
+@router.post("/signals/parse-news")
+async def parse_news_with_gemini(
+    raw_signal: str = Body(..., embed=True)
+):
+    """Stage 1: Prompts Gemini to parse news text or web URLs and extract semantic context."""
+    from agents.gemini_prompt_agent import gemini_prompting_agent
+    return gemini_prompting_agent.parse_news_article(raw_signal)
+
+
+@router.post("/signals/audit-system")
+async def audit_system_with_gemini():
+    """Stage 2: Prompts Gemini to perform mathematical, sanctions, and logistics audits."""
+    from agents.gemini_prompt_agent import gemini_prompting_agent
+    state = get_active_state()
+    state_summary = state.to_dict() if state else {
+        "overall_risk_score": 84.5,
+        "import_deficit_mbpd": 1.4,
+        "brent_price": 96.4,
+        "procurement_rank1": "Russian Urals via Baltic (0.7 mbpd)",
+        "spr_release_rate": 1.15
+    }
+    return gemini_prompting_agent.audit_system_state(state_summary)
+
+
 @router.get("/prices")
 async def get_price_history(days: int = Query(default=90, ge=7, le=365)):
     points = generate_price_history(days=days)

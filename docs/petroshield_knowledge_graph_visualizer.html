@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PetroShield AI — Live NetworkX Knowledge Graph Visualizer</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        #sidebar {
+            width: 360px;
+            background-color: #1e293b;
+            border-right: 1px solid #334155;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+            height: 100vh;
+        }
+        h1 { font-size: 18px; margin: 0; color: #38bdf8; font-weight: 700; }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10.5px;
+            background-color: #064e3b;
+            color: #34d399;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            width: fit-content;
+        }
+        .subtitle { font-size: 11px; color: #94a3b8; margin-top: -10px; }
+        .legend-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; }
+        #node-details {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 14px;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 11.5px;
+            line-height: 1.5;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed #1e293b;
+            padding-bottom: 4px;
+        }
+        .detail-key { color: #94a3b8; }
+        .detail-val { color: #38bdf8; font-weight: 600; word-break: break-all; text-align: right; max-width: 60%; }
+        #network { flex: 1; height: 100vh; background-color: #080c14; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>PETROSHIELD GRAPH</h1>
+        <div id="connection-status" class="status-badge">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #34d399;"></span>
+            LIVE NETWORKX STATE
+        </div>
+        <div class="subtitle">Directed Knowledge Graph Topology</div>
+
+        <div class="legend-box">
+            <div style="font-weight: 600; font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">NODE TYPES IN GRAPH</div>
+            <div class="legend-item"><div class="legend-color" style="background: #ef4444;"></div> Chokepoints (Hormuz, Suez, Red Sea)</div>
+            <div class="legend-item"><div class="legend-color" style="background: #3b82f6;"></div> Suppliers & Oil Fields</div>
+            <div class="legend-item"><div class="legend-color" style="background: #10b981;"></div> Import Ports (Sikka, Vadinar, Kochi)</div>
+            <div class="legend-item"><div class="legend-color" style="background: #f59e0b;"></div> Refineries (Jamnagar, BPCL, MRPL)</div>
+            <div class="legend-item"><div class="legend-color" style="background: #f97316;"></div> Strategic Petroleum Reserves (SPR)</div>
+            <div class="legend-item"><div class="legend-color" style="background: #06b6d4;"></div> Tanker Pools & Shipping Routes</div>
+            <div class="legend-item"><div class="legend-color" style="background: #ec4899;"></div> RAG Historical Memory Nodes</div>
+        </div>
+
+        <div style="font-weight: 600; font-size: 11px; color: #cbd5e1;">LIVE NETWORKX NODE ATTRIBUTES</div>
+        <div id="node-details">
+            <div style="color: #64748b; text-align: center; margin-top: 30px;">
+                Click on any node in the Knowledge Graph to inspect its Python NetworkX attributes.
+            </div>
+        </div>
+    </div>
+
+    <div id="network"></div>
+
+    <script>
+        // Static full dataset from knowledge_graph.py
+        const embeddedNodes = [
+            { id: 'cp_hormuz', label: 'Strait of Hormuz', type: 'chokepoint', risk_score: 88, lat: 26.56, lng: 56.25, metadata: { daily_flow_mbd: 18.8, status: 'Critical Transit' } },
+            { id: 'cp_redsea', label: 'Bab-el-Mandeb (Red Sea)', type: 'chokepoint', risk_score: 75, lat: 12.58, lng: 43.33, metadata: { daily_flow_mbd: 6.2, status: 'Houthi Risk Zone' } },
+            { id: 'cp_suez', label: 'Suez Canal', type: 'chokepoint', risk_score: 45, lat: 30.58, lng: 32.33, metadata: { daily_flow_mbd: 5.5, status: 'Active Corridor' } },
+            { id: 'cp_cape', label: 'Cape of Good Hope', type: 'chokepoint', risk_score: 15, lat: -34.35, lng: 18.47, metadata: { daily_flow_mbd: 'Bypass Route', status: 'Safe Reroute' } },
+
+            { id: 'sa_saudi', label: 'Saudi Arabia (Aramco)', type: 'supplier', risk_score: 42, metadata: { crude_grade: 'Arab Light', export_cap_mbpd: 1.2, cost_base: '$82.50' } },
+            { id: 'sa_iraq', label: 'Iraq (SOMO)', type: 'supplier', risk_score: 55, metadata: { crude_grade: 'Basra Light', export_cap_mbpd: 0.8, cost_base: '$79.80' } },
+            { id: 'sa_russia', label: 'Russia (Urals)', type: 'supplier', risk_score: 65, metadata: { crude_grade: 'Urals Crude', export_cap_mbpd: 0.9, cost_base: '$74.20' } },
+            { id: 'sa_uae', label: 'UAE (ADNOC)', type: 'supplier', risk_score: 25, metadata: { crude_grade: 'Murban', export_cap_mbpd: 0.5, cost_base: '$83.10' } },
+            { id: 'sa_usa', label: 'USA (WTI Midland)', type: 'supplier', risk_score: 10, metadata: { crude_grade: 'WTI Light', export_cap_mbpd: 0.6, cost_base: '$81.40' } },
+            { id: 'sa_nigeria', label: 'Nigeria (NNPC)', type: 'supplier', risk_score: 35, metadata: { crude_grade: 'Bonny Light', export_cap_mbpd: 0.4, cost_base: '$85.00' } },
+
+            { id: 'port_sikka', label: 'Sikka Port (Gujarat)', type: 'import_port', metadata: { capacity_mt: 100, wait_days: 1.0, berth_occupancy: '45%' } },
+            { id: 'port_vadinar', label: 'Vadinar Port', type: 'import_port', metadata: { capacity_mt: 100, wait_days: 1.5, berth_occupancy: '60%' } },
+            { id: 'port_kochi', label: 'Kochi Port', type: 'import_port', metadata: { capacity_mt: 22, wait_days: 0.5, berth_occupancy: '30%' } },
+            { id: 'port_vizag', label: 'Vizag Port', type: 'import_port', metadata: { capacity_mt: 30, wait_days: 0.5, berth_occupancy: '35%' } },
+
+            { id: 'ref_jamnagar', label: 'Jamnagar Refinery (RIL)', type: 'refinery', metadata: { capacity_mbpd: 1.24, min_run_threshold: '70%', status: 'Active (98%)' } },
+            { id: 'ref_bpcl_kochi', label: 'BPCL Kochi Refinery', type: 'refinery', metadata: { capacity_mbpd: 0.31, min_run_threshold: '70%', status: 'Active (94%)' } },
+            { id: 'ref_mrpl', label: 'MRPL Mangaluru', type: 'refinery', metadata: { capacity_mbpd: 0.30, min_run_threshold: '70%', status: 'Active (92%)' } },
+
+            { id: 'spr_padur', label: 'Padur SPR Cavern', type: 'spr_facility', metadata: { capacity_million_bbl: 18.37, runway_cover: '34 Days', status: 'Standby' } },
+            { id: 'spr_mangaluru', label: 'Mangaluru SPR Cavern', type: 'spr_facility', metadata: { capacity_million_bbl: 11.0, runway_cover: '22 Days', status: 'Standby' } },
+            { id: 'spr_vizag', label: 'Visakhapatnam SPR', type: 'spr_facility', metadata: { capacity_million_bbl: 9.77, runway_cover: '18 Days', status: 'Standby' } },
+
+            { id: 'hist_1990_gulf_war', label: '1990 Gulf War RAG', type: 'historical_event', metadata: { brent_spike: '+125%', supply_loss: '4.3 Mbpd', duration: '180 Days' } },
+            { id: 'hist_2024_redsea', label: '2024 Red Sea Houthi RAG', type: 'historical_event', metadata: { transit_delay: '+14 Days', reroute: 'Cape of Good Hope' } }
+        ];
+
+        const embeddedEdges = [
+            { source: 'sa_saudi', target: 'cp_hormuz', relationship: 'Main Shipping Corridor' },
+            { source: 'sa_iraq', target: 'cp_hormuz', relationship: 'Main Shipping Corridor' },
+            { source: 'sa_russia', target: 'cp_suez', relationship: 'Suez Corridor' },
+            { source: 'sa_uae', target: 'port_kochi', relationship: 'Arabian Direct Route' },
+            { source: 'sa_usa', target: 'cp_cape', relationship: 'Atlantic Reroute' },
+            { source: 'sa_nigeria', target: 'cp_cape', relationship: 'Cape Bypass Route' },
+
+            { source: 'cp_hormuz', target: 'port_sikka', relationship: 'VLCC Transit' },
+            { source: 'cp_hormuz', target: 'port_vadinar', relationship: 'VLCC Transit' },
+            { source: 'cp_suez', target: 'cp_redsea', relationship: 'Red Sea Connection' },
+            { source: 'cp_redsea', target: 'port_kochi', relationship: 'Indian Ocean Transit' },
+            { source: 'cp_cape', target: 'port_kochi', relationship: 'Cape Bypass Transit' },
+
+            { source: 'port_sikka', target: 'ref_jamnagar', relationship: 'Direct Pipeline' },
+            { source: 'port_vadinar', target: 'ref_jamnagar', relationship: 'Direct Pipeline' },
+            { source: 'port_kochi', target: 'ref_bpcl_kochi', relationship: 'Direct Pipeline' },
+            { source: 'port_kochi', target: 'ref_mrpl', relationship: 'Feeder Tanker' },
+
+            { source: 'spr_padur', target: 'ref_mrpl', relationship: 'Emergency Drawdown Pipe' },
+            { source: 'spr_mangaluru', target: 'ref_mrpl', relationship: 'Emergency Drawdown Pipe' },
+
+            { source: 'hist_1990_gulf_war', target: 'cp_hormuz', relationship: 'RAG Precedent' },
+            { source: 'hist_2024_redsea', target: 'cp_redsea', relationship: 'RAG Precedent' }
+        ];
+
+        const fallbackColors = {
+            chokepoint: '#ef4444',
+            supplier: '#3b82f6',
+            import_port: '#10b981',
+            refinery: '#f59e0b',
+            spr_facility: '#f97316',
+            historical_event: '#ec4899'
+        };
+
+        let activeNodesMap = {};
+
+        function initGraph() {
+            // Render immediately using embedded dataset
+            renderGraph(embeddedNodes, embeddedEdges);
+
+            // Try live API in background
+            fetch('http://127.0.0.1:8000/api/knowledge-graph')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.nodes && data.nodes.length > 0) {
+                        document.getElementById('connection-status').innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#34d399;"></span> CONNECTED TO LIVE API';
+                        renderGraph(data.nodes, data.edges);
+                    }
+                })
+                .catch(err => {
+                    console.log('Using embedded NetworkX graph data:', err);
+                });
+        }
+
+        function renderGraph(rawNodes, rawEdges) {
+            activeNodesMap = {};
+            const formattedNodes = rawNodes.map(n => {
+                const type = n.type || 'supplier';
+                activeNodesMap[n.id] = n;
+                
+                const c = n.color || fallbackColors[type] || '#3b82f6';
+                const nodeColor = { background: c, border: '#ffffff', highlight: { background: '#38bdf8', border: '#ffffff' } };
+
+                return {
+                    id: n.id,
+                    label: n.label || n.name || n.id,
+                    color: nodeColor,
+                    font: { color: '#ffffff', size: 12, face: 'Inter' },
+                    shape: type === 'chokepoint' ? 'diamond' : (type === 'refinery' ? 'hexagon' : 'dot'),
+                    size: type === 'chokepoint' ? 24 : (type === 'refinery' ? 20 : 15)
+                };
+            });
+
+            const formattedEdges = rawEdges.map(e => ({
+                from: e.source || e.from,
+                to: e.target || e.to,
+                label: e.relationship || e.label || '',
+                font: { color: '#64748b', size: 9.5, align: 'middle', strokeWidth: 0 },
+                color: { color: '#334155', highlight: '#38bdf8' },
+                arrows: { to: { enabled: true, scaleFactor: 0.8 } }
+            }));
+
+            const container = document.getElementById('network');
+            const graphData = {
+                nodes: new vis.DataSet(formattedNodes),
+                edges: new vis.DataSet(formattedEdges)
+            };
+
+            const options = {
+                nodes: { borderWidth: 1.5, shadow: true },
+                edges: { smooth: { type: 'continuous' } },
+                physics: {
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 110,
+                        springConstant: 0.08
+                    },
+                    maxVelocity: 50,
+                    minVelocity: 0.1,
+                    stabilization: { iterations: 200 }
+                },
+                interaction: { hover: true, tooltipDelay: 100 }
+            };
+
+            const network = new vis.Network(container, graphData, options);
+
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const nodeObj = activeNodesMap[nodeId];
+                    if (nodeObj) {
+                        let html = `<div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 6px;">${nodeObj.label || nodeObj.name || nodeObj.id}</div>`;
+                        
+                        if (nodeObj.type) html += `<div class="detail-row"><span class="detail-key">TYPE</span><span class="detail-val">${nodeObj.type.toUpperCase()}</span></div>`;
+                        if (nodeObj.risk_score !== undefined) html += `<div class="detail-row"><span class="detail-key">RISK SCORE</span><span class="detail-val" style="color: #ef4444;">${nodeObj.risk_score}%</span></div>`;
+                        
+                        const metadata = nodeObj.metadata || {};
+                        for (const [key, val] of Object.entries(metadata)) {
+                            const displayVal = typeof val === 'object' ? JSON.stringify(val) : val;
+                            html += `<div class="detail-row"><span class="detail-key">${key.toUpperCase()}</span><span class="detail-val">${displayVal}</span></div>`;
+                        }
+                        
+                        if (nodeObj.lat) {
+                            html += `<div class="detail-row"><span class="detail-key">LAT / LNG</span><span class="detail-val">${nodeObj.lat}, ${nodeObj.lng}</span></div>`;
+                        }
+
+                        document.getElementById('node-details').innerHTML = html;
+                    }
+                }
+            });
+        }
+
+        // Initialize immediately
+        initGraph();
+    </script>
+</body>
+</html>

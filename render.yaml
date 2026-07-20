@@ -1,0 +1,38 @@
+# Render Infrastructure-as-Code Blueprint for PetroShield AI
+# Deploys both Python FastAPI Backend & Next.js 14 Frontend on Render.com
+
+services:
+  # ─── 1. Backend Web Service (FastAPI + SciPy + Monte Carlo + ReportLab) ─────
+  - type: web
+    name: petroshield-backend
+    env: python
+    region: singapore
+    plan: starter # or free/standard
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AISSTREAM_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: "sqlite:///./petroshield.db"
+
+  # ─── 2. Frontend Web Service (Next.js 14 Command Center) ────────────────────
+  - type: web
+    name: petroshield-frontend
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: "cd frontend && npm install && npm run build"
+    startCommand: "cd frontend && npm start"
+    envVars:
+      - key: NODE_VERSION
+        value: "20.11.0"
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: petroshield-backend
+          property: host

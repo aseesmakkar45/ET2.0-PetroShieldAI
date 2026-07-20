@@ -17,15 +17,16 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 async def get_dashboard():
     state = get_active_state()
     
-    # If no state has run, initialize
+    # If no state has run, run baseline pipeline
     if not state:
-        state = get_active_state()
+        from simulation.ais_generator import generate_vessels
+        state = run_petroshield_pipeline("CRITICAL conflict: Baseline crude supplies flow normally.", "POLICY", generate_vessels(count=15))
 
-    risk_sig = state.risk_signal
-    scn_res = state.scenario_result
-    proc_plan = state.procurement_plan
-    spr_adv = state.spr_advisory
-    exec_brief = state.executive_brief
+    risk_sig = state.risk_signal if state else None
+    scn_res = state.scenario_result if state else None
+    proc_plan = state.procurement_plan if state else None
+    spr_adv = state.spr_advisory if state else None
+    exec_brief = state.executive_brief if state else None
 
     # Extract dynamic parameters or fall back to baseline
     risk_score = risk_sig.disruption_probability if risk_sig else 15.0

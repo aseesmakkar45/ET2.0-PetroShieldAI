@@ -453,12 +453,27 @@ export default function NationalEnergyTwin() {
     if (consoleRef.current) consoleRef.current.scrollTop = consoleRef.current.scrollHeight
   }, [consoleLogs])
 
+// ── REAL NEWS ARTICLE URLS LINKED TO SCENARIO BUTTONS FOR LIVE SCRAPING & REAL-TIME NLP SIMULATION ──
+const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
+  none: '',
+  hormuz: 'https://www.reuters.com/world/middle-east/iran-tensions-strait-of-hormuz-shipping-risk-2024',
+  redsea: 'https://www.bbc.com/news/world-middle-east-67705667',
+  opec: 'https://www.reuters.com/business/energy/opec-agrees-voluntary-oil-output-cuts-2023',
+  cyclone: 'https://www.aljazeera.com/news/2021/5/17/cyclone-tauktae-barrels-towards-indias-gujarat-state'
+}
+
   const fireEvent = async (evtId: EventId) => {
+    if (evtId === 'none') return
     setScanlineActive(true)
     setLoadingState(true)
     setTimeout(() => setScanlineActive(false), 1200)
     try {
-      await api.post('/api/scenarios/generate', { scenario_type: evtId })
+      const articleUrl = SCENARIO_NEWS_ARTICLES[evtId]
+      // Submit live news URL to backend web scraper & Agent 1 (Risk Intel) for real-time URL parsing & simulation
+      await api.post('/api/signals/simulate', {
+        raw_signal: articleUrl,
+        source_type: "URL"
+      })
       await refreshBackendData()
       setActiveEvent(evtId)
       setMode('SIMULATION')
@@ -468,7 +483,7 @@ export default function NationalEnergyTwin() {
       setNarrativeIdx(0)
       setConsoleLogs([])
     } catch (e) {
-      console.error("Failed to generate scenario:", e)
+      console.error("Failed to run real-time URL NLP simulation:", e)
     } finally {
       setLoadingState(false)
     }
@@ -625,37 +640,37 @@ export default function NationalEnergyTwin() {
 
       {/* ══ TOP COMMAND BAR ══ */}
       <div style={{
-        background: 'rgba(8, 16, 28, 0.98)',
-        borderBottom: `1px solid ${C.border}`,
-        padding: '7px 16px',
+        background: '#ffffff',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '8px 18px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0, boxShadow: '0 4px 20px rgba(0,0,0,0.5)', zIndex: 100,
+        flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', zIndex: 100,
       }}>
         {/* Left: mode + scenario */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <div style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: mode === 'LIVE' ? C.secondary : C.danger,
-              boxShadow: mode === 'LIVE' ? `0 0 9px ${C.secondary}` : `0 0 9px ${C.danger}`,
+              background: mode === 'LIVE' ? '#059669' : '#dc2626',
+              boxShadow: mode === 'LIVE' ? '0 0 8px rgba(5,150,105,0.4)' : '0 0 8px rgba(220,38,38,0.4)',
             }} className={mode === 'SIMULATION' ? 'pulse-ring-fast' : ''} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px',
-              color: mode === 'LIVE' ? C.secondary : C.danger }}>{mode}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px',
+              color: mode === 'LIVE' ? '#059669' : '#dc2626' }}>{mode}</span>
           </div>
-          <div style={{ width: 1, height: 18, background: C.borderFaint }} />
+          <div style={{ width: 1, height: 18, background: '#cbd5e1' }} />
           <div>
-            <div style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px' }}>ACTIVE SCENARIO</div>
-            <div style={{ fontSize: 12, fontWeight: 700,
-              color: activeEvent === 'none' ? C.textDim : C.warning }}>
+            <div style={{ fontSize: 8, color: '#64748b', letterSpacing: '1px', fontWeight: 700 }}>ACTIVE SCENARIO</div>
+            <div style={{ fontSize: 12, fontWeight: 800,
+              color: activeEvent === 'none' ? '#0f172a' : '#d97706' }}>
               {activeEvent === 'none' ? 'All Systems Normal — Live Feeds' : scenario.title}
             </div>
           </div>
           {mode === 'SIMULATION' && (
             <>
-              <div style={{ width: 1, height: 18, background: C.borderFaint }} />
+              <div style={{ width: 1, height: 18, background: '#cbd5e1' }} />
               <div>
-                <div style={{ fontSize: 8, color: C.textDim, letterSpacing: '1px' }}>SIM CLOCK</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>DAY {t} / 30</div>
+                <div style={{ fontSize: 8, color: '#64748b', letterSpacing: '1px', fontWeight: 700 }}>SIM CLOCK</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#d97706' }}>DAY {t} / 30</div>
               </div>
             </>
           )}
@@ -664,13 +679,13 @@ export default function NationalEnergyTwin() {
         {/* Center: live KPIs */}
         <div style={{ display: 'flex', gap: 28 }}>
           {[
-            { label: 'BRENT CRUDE', value: `$${brent.toFixed(1)}/bbl`, color: brent > 95 ? C.danger : C.primary },
-            { label: 'IMPORT DEFICIT', value: `${importDeficit < 0 ? importDeficit.toFixed(1) : '0.0'} mbpd`, color: importDeficit < -0.5 ? C.danger : C.secondary },
-            { label: 'DEMAND SAT.', value: `${demandSat.toFixed(0)}%`, color: demandSat < 80 ? C.warning : C.secondary },
-            { label: 'GRID STRESS', value: `${gridStress.toFixed(0)}/100`, color: gridStress > 70 ? C.danger : C.primary },
+            { label: 'BRENT CRUDE', value: `$${brent.toFixed(1)}/bbl`, color: brent > 95 ? '#dc2626' : '#d97706' },
+            { label: 'IMPORT DEFICIT', value: `${importDeficit < 0 ? importDeficit.toFixed(1) : '0.0'} mbpd`, color: importDeficit < -0.5 ? '#dc2626' : '#059669' },
+            { label: 'DEMAND SAT.', value: `${demandSat.toFixed(0)}%`, color: demandSat < 80 ? '#d97706' : '#059669' },
+            { label: 'GRID STRESS', value: `${gridStress.toFixed(0)}/100`, color: gridStress > 70 ? '#dc2626' : '#2563eb' },
           ].map(kpi => (
             <div key={kpi.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 8, color: C.textFaint, letterSpacing: '1.5px' }}>{kpi.label}</div>
+              <div style={{ fontSize: 8, color: '#64748b', letterSpacing: '1.5px', fontWeight: 700 }}>{kpi.label}</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
             </div>
           ))}
@@ -679,19 +694,19 @@ export default function NationalEnergyTwin() {
         {/* Right: controls */}
         <div style={{ display: 'flex', gap: 8 }}>
           {mode === 'SIMULATION' && (
-            <button onClick={() => setShowConsole(v => !v)} style={btnStyle(showConsole ? C.secondary : C.textDim)}>
+            <button onClick={() => setShowConsole(v => !v)} style={btnStyle(showConsole ? '#059669' : '#475569')}>
               {showConsole ? '⬛ Console' : '▶ Console'}
             </button>
           )}
           {mode === 'SIMULATION' && (
             <>
-              <button onClick={() => setIsPlaying(!isPlaying)} style={btnStyle(isPlaying ? C.danger : C.secondary)}>
+              <button onClick={() => setIsPlaying(!isPlaying)} style={btnStyle(isPlaying ? '#dc2626' : '#059669')}>
                 {isPlaying ? '⏸ Pause' : '▶ Play'}
               </button>
-              <button onClick={() => setSimDay(0)} style={btnStyle(C.primary)}>↺ Restart</button>
+              <button onClick={() => setSimDay(0)} style={btnStyle('#d97706')}>↺ Restart</button>
             </>
           )}
-          <button onClick={resetToLive} style={btnStyle(mode === 'LIVE' ? C.borderFaint : C.primary)} disabled={mode === 'LIVE'}>
+          <button onClick={resetToLive} style={btnStyle(mode === 'LIVE' ? '#94a3b8' : '#2563eb')} disabled={mode === 'LIVE'}>
             ⬤ Live
           </button>
         </div>
@@ -702,25 +717,26 @@ export default function NationalEnergyTwin() {
 
         {/* ── LEFT STRIP ── */}
         <div style={{
-          width: 66, background: 'rgba(8, 16, 28, 0.96)',
-          borderRight: `1px solid ${C.borderFaint}`,
+          width: 68, background: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
           display: 'flex', flexDirection: 'column',
           padding: '10px 5px', gap: 5, overflowY: 'auto', flexShrink: 0,
         }}>
-          <div style={{ fontSize: 7, color: C.textFaint, letterSpacing: '1.5px', textAlign: 'center', marginBottom: 3 }}>ZOOM</div>
+          <div style={{ fontSize: 7.5, color: '#64748b', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 3, fontWeight: 800 }}>ZOOM</div>
           {(Object.keys(ZOOM_CONFIGS) as ZoomLevel[]).map(z => (
             <button key={z} onClick={() => setZoomLevel(z)} className="btn-layer" style={{
-              background: zoomLevel === z ? 'rgba(212,168,71,0.1)' : 'transparent',
-              border: zoomLevel === z ? '1px solid rgba(212,168,71,0.45)' : `1px solid ${C.borderFaint}`,
-              borderRadius: 4, padding: '4px 2px',
-              color: zoomLevel === z ? C.primary : C.textDim,
-              fontSize: 8.5, textAlign: 'center', lineHeight: 1.35,
+              background: zoomLevel === z ? '#fef3c7' : '#ffffff',
+              border: zoomLevel === z ? '1px solid #f59e0b' : '1px solid #e2e8f0',
+              borderRadius: 5, padding: '5px 2px',
+              color: zoomLevel === z ? '#b45309' : '#475569',
+              fontSize: 8.5, textAlign: 'center', lineHeight: 1.35, fontWeight: zoomLevel === z ? 800 : 600,
+              boxShadow: zoomLevel === z ? '0 1px 3px rgba(217,119,6,0.15)' : 'none',
             }}>
               {ZOOM_CONFIGS[z].label}
             </button>
           ))}
-          <div style={{ height: 1, background: C.borderFaint, margin: '5px 0' }} />
-          <div style={{ fontSize: 7, color: C.textFaint, letterSpacing: '1.5px', textAlign: 'center', marginBottom: 3 }}>LAYERS</div>
+          <div style={{ height: 1, background: '#e2e8f0', margin: '5px 0' }} />
+          <div style={{ fontSize: 7.5, color: '#64748b', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 3, fontWeight: 800 }}>LAYERS</div>
           {[
             { id: 'flow', icon: '〰', label: 'Flow' },
             { id: 'tankers', icon: '🚢', label: 'Ships' },
@@ -733,11 +749,11 @@ export default function NationalEnergyTwin() {
             { id: 'weather', icon: '🌀', label: 'Weath.' },
           ].map(layer => (
             <button key={layer.id} onClick={() => toggleLayer(layer.id)} className="btn-layer" style={{
-              background: L.has(layer.id) ? 'rgba(212,168,71,0.07)' : 'transparent',
-              border: L.has(layer.id) ? '1px solid rgba(212,168,71,0.25)' : `1px solid ${C.borderFaint}`,
-              borderRadius: 4, padding: '3px 2px',
-              color: L.has(layer.id) ? C.primary : C.textFaint,
-              fontSize: 8, textAlign: 'center', lineHeight: 1.4,
+              background: L.has(layer.id) ? '#eff6ff' : '#ffffff',
+              border: L.has(layer.id) ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+              borderRadius: 5, padding: '4px 2px',
+              color: L.has(layer.id) ? '#1d4ed8' : '#64748b',
+              fontSize: 8, textAlign: 'center', lineHeight: 1.4, fontWeight: L.has(layer.id) ? 700 : 500,
             }}>
               <div>{layer.icon}</div>
               <div>{layer.label}</div>
@@ -1135,16 +1151,16 @@ export default function NationalEnergyTwin() {
                 { id: 'cyclone',label: '🌀 Cyclone Gujarat', sev: 'MODERATE' },
               ] as { id: EventId; label: string; sev: string }[]).map(ev => (
                 <button key={ev.id} onClick={() => fireEvent(ev.id)} style={{
-                  background: 'rgba(8, 16, 28, 0.94)',
-                  border: '1px solid rgba(234,179,8,0.3)',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
                   borderRadius: 6, padding: '7px 14px',
-                  color: C.warning, fontSize: 11, fontWeight: 700,
+                  color: '#0f172a', fontSize: 11, fontWeight: 800,
                   cursor: 'pointer', letterSpacing: '0.5px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                  backdropFilter: 'blur(8px)', transition: 'all 0.2s',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+                  transition: 'all 0.2s',
                 }}>
                   {ev.label}
-                  <span style={{ marginLeft: 6, fontSize: 8, color: C.danger, letterSpacing: '1px' }}>{ev.sev}</span>
+                  <span style={{ marginLeft: 6, fontSize: 8, color: ev.sev === 'CRITICAL' ? '#dc2626' : '#d97706', letterSpacing: '1px', fontWeight: 800 }}>{ev.sev}</span>
                 </button>
               ))}
             </div>
@@ -1154,17 +1170,18 @@ export default function NationalEnergyTwin() {
           {mode === 'SIMULATION' && (
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0,
-              background: 'rgba(8, 16, 28, 0.95)',
-              borderTop: `1px solid ${C.border}`,
+              background: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
               padding: '8px 16px', zIndex: 20,
+              boxShadow: '0 -2px 10px rgba(0,0,0,0.03)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 9, color: C.textFaint, letterSpacing: '1px', whiteSpace: 'nowrap' }}>DAY 0</span>
+                <span style={{ fontSize: 9, color: '#64748b', letterSpacing: '1px', whiteSpace: 'nowrap', fontWeight: 700 }}>DAY 0</span>
                 <input type="range" min="0" max="30" value={simDay}
                   onChange={e => { setSimDay(+e.target.value); setIsPlaying(false) }}
-                  style={{ flex: 1, cursor: 'pointer', accentColor: C.primary }}/>
-                <span style={{ fontSize: 9, color: C.textFaint, letterSpacing: '1px', whiteSpace: 'nowrap' }}>DAY 30</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.primary, minWidth: 56 }}>DAY {simDay}</span>
+                  style={{ flex: 1, cursor: 'pointer', accentColor: '#d97706' }}/>
+                <span style={{ fontSize: 9, color: '#64748b', letterSpacing: '1px', whiteSpace: 'nowrap', fontWeight: 700 }}>DAY 30</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#d97706', minWidth: 56 }}>DAY {simDay}</span>
               </div>
               <div style={{ position: 'relative', marginTop: 2, height: 12 }}>
                 {scenario.cascadeSteps.slice(0, 7).map((step, i) => {
@@ -1174,8 +1191,8 @@ export default function NationalEnergyTwin() {
                   return (
                     <div key={i} style={{
                       position: 'absolute', left: `${pct}%`,
-                      fontSize: 7, color: day <= simDay ? C.warning : C.textFaint,
-                      transform: 'translateX(-50%)', top: 0, whiteSpace: 'nowrap',
+                      fontSize: 7, color: day <= simDay ? '#d97706' : '#94a3b8',
+                      transform: 'translateX(-50%)', top: 0, whiteSpace: 'nowrap', fontWeight: 700
                     }}>▲</div>
                   )
                 })}
@@ -1183,60 +1200,59 @@ export default function NationalEnergyTwin() {
             </div>
           )}
 
-          {/* ══ AI AGENT CONSOLE LOG (transparent overlay) ══ */}
+          {/* ══ AI AGENT CONSOLE LOG (light overlay) ══ */}
           {showConsole && mode === 'SIMULATION' && (
             <div style={{
               position: 'absolute',
               left: 76, bottom: mode === 'SIMULATION' ? 58 : 12,
-              width: 400, maxHeight: 190,
-              background: 'rgba(6, 12, 22, 0.92)',
-              border: '1px solid rgba(16,185,129,0.3)',
+              width: 420, maxHeight: 200,
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
               borderRadius: 6,
-              backdropFilter: 'blur(14px)',
               zIndex: 50,
               overflow: 'hidden',
               display: 'flex', flexDirection: 'column',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.1)',
             }}>
               {/* Console header */}
               <div style={{
-                padding: '5px 10px',
-                borderBottom: '1px solid rgba(16,185,129,0.2)',
+                padding: '6px 12px',
+                borderBottom: '1px solid #e2e8f0',
                 display: 'flex', alignItems: 'center', gap: 6,
-                background: 'rgba(8, 16, 28, 0.8)',
+                background: '#f8fafc',
                 flexShrink: 0,
               }}>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#c75a40' }}/>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#c8933a' }}/>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.secondary }}/>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444' }}/>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }}/>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }}/>
                 </div>
-                <span style={{ fontSize: 9, fontWeight: 700, color: C.secondary, letterSpacing: '1.5px' }}>
+                <span style={{ fontSize: 9, fontWeight: 800, color: '#0f172a', letterSpacing: '1.5px' }}>
                   AI AGENT — ANALYSIS LOG
                 </span>
-                <span style={{ fontSize: 8, color: C.textDim, marginLeft: 'auto' }}>
+                <span style={{ fontSize: 8, color: '#64748b', marginLeft: 'auto', fontWeight: 600 }}>
                   {consoleLogs.length} entries
                 </span>
               </div>
               {/* Console body */}
               <div ref={consoleRef} style={{
-                flex: 1, overflowY: 'auto', padding: '6px 10px',
-                display: 'flex', flexDirection: 'column', gap: 2,
+                flex: 1, overflowY: 'auto', padding: '8px 12px',
+                display: 'flex', flexDirection: 'column', gap: 3, background: '#ffffff'
               }}>
                 {consoleLogs.length === 0 && (
-                  <span style={{ fontSize: 8.5, color: C.textFaint }}>
+                  <span style={{ fontSize: 8.5, color: '#94a3b8' }}>
                     Initializing analysis engine...<span className="console-cursor">█</span>
                   </span>
                 )}
                 {consoleLogs.map((log, i) => (
                   <div key={i} className="fade-in" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 7.5, color: C.textFaint, whiteSpace: 'nowrap', flexShrink: 0 }}>{log.ts}</span>
+                    <span style={{ fontSize: 8, color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0, fontWeight: 600 }}>{log.ts}</span>
                     <span style={{
-                      fontSize: 7.5, lineHeight: 1.4,
-                      color: log.level === 'CRIT' ? C.consoleCrit
-                        : log.level === 'WARN' ? C.consoleWarn
-                        : log.level === 'ACT' ? C.consoleAct
-                        : C.consoleGreen,
+                      fontSize: 8, lineHeight: 1.4, fontWeight: 600,
+                      color: log.level === 'CRIT' ? '#dc2626'
+                        : log.level === 'WARN' ? '#d97706'
+                        : log.level === 'ACT' ? '#2563eb'
+                        : '#059669',
                     }}>
                       {log.level !== 'INFO' && <span style={{ fontWeight: 800, marginRight: 4 }}>[{log.level}]</span>}
                       {log.msg}
@@ -1244,7 +1260,7 @@ export default function NationalEnergyTwin() {
                   </div>
                 ))}
                 {consoleLogs.length > 0 && consoleLogs.length < (SCENARIOS[activeEvent]?.consoleLogs.length ?? 0) && (
-                  <div style={{ fontSize: 7.5, color: C.secondary }}>
+                  <div style={{ fontSize: 8, color: '#059669' }}>
                     <span className="console-cursor">█</span>
                   </div>
                 )}
@@ -1255,32 +1271,34 @@ export default function NationalEnergyTwin() {
 
         {/* ── AI DECISION CENTER PANEL ── */}
         <div style={{
-          width: 330,
-          background: 'rgba(8, 16, 28, 0.98)',
-          borderLeft: `1px solid ${C.borderFaint}`,
+          width: 340,
+          background: '#ffffff',
+          borderLeft: '1px solid #e2e8f0',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden', flexShrink: 0,
+          boxShadow: '-2px 0 10px rgba(0,0,0,0.03)',
         }}>
           <div style={{
-            padding: '10px 14px', borderBottom: `1px solid ${C.borderFaint}`,
+            padding: '12px 16px', borderBottom: '1px solid #e2e8f0',
             display: 'flex', alignItems: 'center', gap: 8,
+            background: '#f8fafc',
           }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.primary, boxShadow: `0 0 8px ${C.primary}` }}/>
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '2px', color: C.primary }}>AI DECISION CENTER</span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706', boxShadow: '0 0 8px rgba(217,119,6,0.35)' }}/>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', color: '#0f172a' }}>AI DECISION CENTER</span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 14, background: '#ffffff' }}>
 
             {/* Scenario selector (live) */}
             {mode === 'LIVE' && (
               <div style={{
-                background: 'rgba(212,168,71,0.04)', border: `1px solid ${C.border}`,
+                background: '#f8fafc', border: '1px solid #e2e8f0',
                 borderRadius: 8, padding: 12,
               }}>
-                <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 10 }}>
+                <div style={{ fontSize: 9.5, color: '#64748b', letterSpacing: '1.5px', marginBottom: 10, fontWeight: 800 }}>
                   SELECT DISRUPTION SCENARIO
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {([
                     { id: 'hormuz', label: 'Strait of Hormuz Closure', sev: 'CRITICAL', prob: 82 },
                     { id: 'redsea', label: 'Red Sea / Bab-el-Mandeb Attack', sev: 'ELEVATED', prob: 74 },
@@ -1288,18 +1306,19 @@ export default function NationalEnergyTwin() {
                     { id: 'cyclone',label: 'Cyclone Tauktae — Gujarat', sev: 'MODERATE', prob: 68 },
                   ] as { id: EventId; label: string; sev: string; prob: number }[]).map(ev => (
                     <button key={ev.id} onClick={() => fireEvent(ev.id)} style={{
-                      background: 'rgba(224,92,58,0.04)',
-                      border: '1px solid rgba(224,92,58,0.22)',
-                      borderRadius: 6, padding: '8px 10px',
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6, padding: '9px 11px',
                       cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: C.warning }}>{ev.label}</span>
-                        <span style={{ fontSize: 8, color: ev.sev === 'CRITICAL' ? C.danger : C.warning, fontWeight: 800 }}>{ev.sev}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: '#0f172a' }}>{ev.label}</span>
+                        <span style={{ fontSize: 8, color: ev.sev === 'CRITICAL' ? '#dc2626' : '#d97706', fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: ev.sev === 'CRITICAL' ? '#fee2e2' : '#fef3c7' }}>{ev.sev}</span>
                       </div>
-                      <div style={{ marginTop: 4 }}>
-                        <span style={{ fontSize: 8, color: C.textFaint }}>AI Probability: </span>
-                        <span style={{ fontSize: 8, color: C.primary, fontWeight: 700 }}>{ev.prob}%</span>
+                      <div style={{ marginTop: 5 }}>
+                        <span style={{ fontSize: 8.5, color: '#64748b' }}>AI Probability: </span>
+                        <span style={{ fontSize: 8.5, color: '#2563eb', fontWeight: 800 }}>{ev.prob}%</span>
                       </div>
                     </button>
                   ))}
@@ -1307,25 +1326,25 @@ export default function NationalEnergyTwin() {
                 
                 {recentSignals && recentSignals.length > 0 && (
                   <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>
+                    <div style={{ fontSize: 9.5, color: '#64748b', letterSpacing: '1.5px', marginBottom: 8, fontWeight: 800 }}>
                       LIVE GEOPOLITICAL ALERTS (REAL-TIME RSS)
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
                       {recentSignals.map((sig, sIdx) => (
                         <button key={sIdx} onClick={() => fireLiveSignal(sig)} style={{
-                          background: 'rgba(239, 68, 68, 0.05)',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          borderRadius: 6, padding: '7px 9px',
+                          background: '#ffffff',
+                          border: '1px solid #fee2e2',
+                          borderRadius: 6, padding: '8px 10px',
                           cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
-                          width: '100%',
+                          width: '100%', boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }}>{sig.event_summary}</span>
-                            <span style={{ fontSize: 7.5, color: C.danger, fontWeight: 800 }}>{sig.severity}</span>
+                            <span style={{ fontSize: 9.5, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>{sig.event_summary}</span>
+                            <span style={{ fontSize: 7.5, color: '#dc2626', fontWeight: 800 }}>{sig.severity}</span>
                           </div>
-                          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 7.5, color: C.textDim }}>
-                            <span>Probability: <span style={{ color: C.primary, fontWeight: 700 }}>{sig.disruption_probability.toFixed(0)}%</span></span>
-                            <span>Impact: <span style={{ color: C.warning, fontWeight: 700 }}>{sig.estimated_supply_impact_mbpd}M</span></span>
+                          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 8, color: '#64748b' }}>
+                            <span>Probability: <span style={{ color: '#2563eb', fontWeight: 700 }}>{sig.disruption_probability.toFixed(0)}%</span></span>
+                            <span>Impact: <span style={{ color: '#d97706', fontWeight: 700 }}>{sig.estimated_supply_impact_mbpd}M</span></span>
                           </div>
                         </button>
                       ))}
@@ -1337,20 +1356,20 @@ export default function NationalEnergyTwin() {
 
             {/* Active simulation content */}
             {mode === 'SIMULATION' && activeEvent !== 'none' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
                 {/* Severity banner */}
                 <div style={{
-                  background: 'rgba(224,92,58,0.07)', border: '1px solid rgba(224,92,58,0.3)',
-                  borderRadius: 6, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                  background: '#fff1f2', border: '1px solid #fecdd3',
+                  borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8,
                 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.danger,
-                    boxShadow: `0 0 9px ${C.danger}`, flexShrink: 0 }} className="pulse-ring-fast"/>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626',
+                    boxShadow: '0 0 8px rgba(220,38,38,0.4)', flexShrink: 0 }} className="pulse-ring-fast"/>
                   <div>
-                    <div style={{ fontSize: 9, color: C.danger, fontWeight: 800, letterSpacing: '1.5px' }}>
+                    <div style={{ fontSize: 9, color: '#be123c', fontWeight: 800, letterSpacing: '1.5px' }}>
                       {scenario.severity} — SIMULATION ACTIVE
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.text, marginTop: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#0f172a', marginTop: 1 }}>
                       {scenario.title}
                     </div>
                   </div>
@@ -1359,39 +1378,39 @@ export default function NationalEnergyTwin() {
                 {/* Gemini Risk Audit Panel */}
                 {backendAudit?.gemini_risk_validation && (
                   <div style={{
-                    background: 'rgba(239, 68, 68, 0.02)', border: '1px solid rgba(239, 68, 68, 0.15)',
-                    borderRadius: 6, padding: 10, display: 'flex', flexDirection: 'column', gap: 6
+                    background: '#f8fafc', border: '1px solid #e2e8f0',
+                    borderRadius: 6, padding: 11, display: 'flex', flexDirection: 'column', gap: 7
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 9, color: C.danger, letterSpacing: '1.5px', fontWeight: 800 }}>
+                      <span style={{ fontSize: 9, color: '#dc2626', letterSpacing: '1.5px', fontWeight: 800 }}>
                         AI RISK AUDIT & VALIDATION
                       </span>
                       <span style={{
-                        fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
-                        background: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? C.primary : C.warning,
-                        border: `1px solid ${backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                        fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                        background: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? '#d1fae5' : '#fef3c7',
+                        color: backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? '#059669' : '#b45309',
+                        border: `1px solid ${backendAudit.gemini_risk_validation.validation_decision === 'AGREED' ? '#a7f3d0' : '#fde68a'}`
                       }}>
                         {backendAudit.gemini_risk_validation.validation_decision}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: C.textDim }}>
-                      <span>Confidence: <strong style={{ color: C.text }}>{backendAudit.gemini_risk_validation.confidence_level}</strong></span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8.5, color: '#475569' }}>
+                      <span>Confidence: <strong style={{ color: '#0f172a' }}>{backendAudit.gemini_risk_validation.confidence_level}</strong></span>
                     </div>
                     
                     {backendAudit.gemini_risk_validation.confidence_explanation && (
-                      <p style={{ fontSize: 8, color: C.textDim, margin: '2px 0 4px 0', lineHeight: 1.4, fontStyle: 'italic' }}>
+                      <p style={{ fontSize: 8.5, color: '#475569', margin: '2px 0 4px 0', lineHeight: 1.4, fontStyle: 'italic' }}>
                         {backendAudit.gemini_risk_validation.confidence_explanation}
                       </p>
                     )}
 
                     {backendAudit.gemini_risk_validation.supporting_evidence?.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 7.5, color: C.textDim, fontWeight: 700, marginBottom: 2 }}>SUPPORTING EVIDENCE</div>
+                        <div style={{ fontSize: 8, color: '#64748b', fontWeight: 800, marginBottom: 3 }}>SUPPORTING EVIDENCE</div>
                         {backendAudit.gemini_risk_validation.supporting_evidence.slice(0, 2).map((ev: string, idx: number) => (
-                          <div key={idx} style={{ fontSize: 7.5, color: C.text, display: 'flex', gap: 4, marginTop: 1 }}>
-                            <span>-</span><span>{ev}</span>
+                          <div key={idx} style={{ fontSize: 8, color: '#0f172a', display: 'flex', gap: 4, marginTop: 1 }}>
+                            <span>•</span><span>{ev}</span>
                           </div>
                         ))}
                       </div>
@@ -1399,10 +1418,10 @@ export default function NationalEnergyTwin() {
 
                     {backendAudit.gemini_risk_validation.weaknesses_and_uncertainties?.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 7.5, color: C.textDim, fontWeight: 700, marginBottom: 2, marginTop: 4 }}>UNCERTAINTIES & WEAKNESSES</div>
+                        <div style={{ fontSize: 8, color: '#64748b', fontWeight: 800, marginBottom: 3, marginTop: 4 }}>UNCERTAINTIES & WEAKNESSES</div>
                         {backendAudit.gemini_risk_validation.weaknesses_and_uncertainties.slice(0, 2).map((w: string, idx: number) => (
-                          <div key={idx} style={{ fontSize: 7.5, color: C.textDim, display: 'flex', gap: 4, marginTop: 1 }}>
-                            <span>-</span><span>{w}</span>
+                          <div key={idx} style={{ fontSize: 8, color: '#475569', display: 'flex', gap: 4, marginTop: 1 }}>
+                            <span>•</span><span>{w}</span>
                           </div>
                         ))}
                       </div>
@@ -1412,16 +1431,16 @@ export default function NationalEnergyTwin() {
 
                 {/* AI Narrative */}
                 <div style={{
-                  background: 'rgba(8, 16, 28, 0.5)', border: `1px solid ${C.borderFaint}`,
-                  borderRadius: 6, padding: 10,
+                  background: '#f8fafc', border: '1px solid #e2e8f0',
+                  borderRadius: 6, padding: 11,
                 }}>
-                  <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 6 }}>
+                  <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 6, fontWeight: 800 }}>
                     AI ANALYST REPORT
                   </div>
                   <AnimatePresence mode="wait">
                     <motion.p key={narrativeIdx}
                       initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      style={{ fontSize: 10, color: C.text, lineHeight: 1.55, margin: 0 }}>
+                      style={{ fontSize: 10, color: '#0f172a', lineHeight: 1.55, margin: 0, fontWeight: 500 }}>
                       {backendAudit?.gemini_audit?.narratives && backendAudit.gemini_audit.narratives.length > 0 ? backendAudit.gemini_audit.narratives[narrativeIdx % backendAudit.gemini_audit.narratives.length] : scenario.narrative[narrativeIdx]}
                     </motion.p>
                   </AnimatePresence>
@@ -1429,20 +1448,20 @@ export default function NationalEnergyTwin() {
 
                 {/* Cascade Timeline */}
                 <div>
-                  <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>PREDICTED CASCADE</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 8, fontWeight: 800 }}>PREDICTED CASCADE</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {((backendAudit?.gemini_audit?.cascade_steps && backendAudit.gemini_audit.cascade_steps.length > 0 ? backendAudit.gemini_audit.cascade_steps : scenario.cascadeSteps) as string[]).map((step: string, i: number) => {
                       const dayMatch = step.match(/Day (\d+)/)
                       const day = dayMatch ? parseInt(dayMatch[1]) : 0
                       const past = simDay >= day
                       return (
-                        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', opacity: past ? 1 : 0.38 }}>
+                        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', opacity: past ? 1 : 0.45 }}>
                           <div style={{
-                            width: 5, height: 5, borderRadius: '50%', flexShrink: 0, marginTop: 3,
-                            background: past ? C.warning : 'rgba(212,168,71,0.2)',
-                            boxShadow: past ? `0 0 6px ${C.warning}` : 'none',
+                            width: 6, height: 6, borderRadius: '50%', flexShrink: 0, marginTop: 3,
+                            background: past ? '#d97706' : '#cbd5e1',
+                            boxShadow: past ? '0 0 6px rgba(217,119,6,0.3)' : 'none',
                           }}/>
-                          <span style={{ fontSize: 8.5, color: past ? C.text : C.textDim, lineHeight: 1.4 }}>{step}</span>
+                          <span style={{ fontSize: 8.5, color: past ? '#0f172a' : '#64748b', lineHeight: 1.4, fontWeight: past ? 700 : 400 }}>{step}</span>
                         </div>
                       )
                     })}
@@ -1451,7 +1470,7 @@ export default function NationalEnergyTwin() {
 
                 {/* Risk Bars */}
                 <div>
-                  <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>RISK PROPAGATION</div>
+                  <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 8, fontWeight: 800 }}>RISK PROPAGATION</div>
                   {[
                     { label: 'Supply Security', val: Math.min(95, Math.abs(importDeficit) * 28 + t * 1.5) },
                     { label: 'Price Stability',  val: Math.min(90, (brent - 82.5) * 2.5 + t * 0.8) },
@@ -1461,18 +1480,17 @@ export default function NationalEnergyTwin() {
                   ].map(r => (
                     <div key={r.label} style={{ marginBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 8.5, color: C.textDim }}>{r.label}</span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700,
-                          color: r.val > 60 ? C.danger : r.val > 35 ? C.warning : C.secondary }}>
+                        <span style={{ fontSize: 8.5, color: '#475569', fontWeight: 600 }}>{r.label}</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 800,
+                          color: r.val > 60 ? '#dc2626' : r.val > 35 ? '#d97706' : '#059669' }}>
                           {r.val.toFixed(0)}%
                         </span>
                       </div>
-                      <div style={{ height: 3.5, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+                      <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2 }}>
                         <div style={{
                           height: '100%', borderRadius: 2, width: `${r.val}%`,
-                          background: r.val > 60 ? C.danger : r.val > 35 ? C.warning : C.secondary,
+                          background: r.val > 60 ? '#dc2626' : r.val > 35 ? '#d97706' : '#059669',
                           transition: 'width 0.5s ease',
-                          boxShadow: `0 0 6px ${r.val > 60 ? C.danger : r.val > 35 ? C.warning : C.secondary}`,
                         }}/>
                       </div>
                     </div>
@@ -1481,7 +1499,7 @@ export default function NationalEnergyTwin() {
 
                 {/* Mitigations */}
                 <div>
-                  <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 8 }}>AI RECOMMENDED MITIGATIONS</div>
+                  <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 8, fontWeight: 800 }}>AI RECOMMENDED MITIGATIONS</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     {[
                       { id: 'spr',     label: 'Release Padur SPR',       stars: '★★★★★', desc: 'Inject 0.9 mbpd reserve crude. Padur + Mangaluru caverns. Buffer: ~14 days.', impact: '+0.9 mbpd' },
@@ -1492,29 +1510,30 @@ export default function NationalEnergyTwin() {
                       const approved = approvedActions.has(action.id)
                       return (
                         <div key={action.id} style={{
-                          background: approved ? 'rgba(16,185,129,0.08)' : 'rgba(8, 16, 28, 0.4)',
-                          border: approved ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 7, padding: '7px 10px',
+                          background: approved ? '#ecfdf5' : '#ffffff',
+                          border: approved ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                          borderRadius: 7, padding: '8px 11px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                            <span style={{ fontSize: 9.5, fontWeight: 700, color: approved ? C.secondary : C.warning }}>
+                            <span style={{ fontSize: 9.5, fontWeight: 800, color: approved ? '#059669' : '#d97706' }}>
                               {action.stars} {action.label}
                             </span>
-                            {approved && <span style={{ fontSize: 7.5, color: C.secondary, fontWeight: 800 }}>APPROVED</span>}
+                            {approved && <span style={{ fontSize: 7.5, color: '#059669', fontWeight: 800, padding: '1px 5px', background: '#d1fae5', borderRadius: 4 }}>APPROVED</span>}
                           </div>
-                          <p style={{ fontSize: 8.5, color: C.textDim, margin: '0 0 5px 0', lineHeight: 1.4 }}>{action.desc}</p>
+                          <p style={{ fontSize: 8.5, color: '#475569', margin: '0 0 6px 0', lineHeight: 1.4 }}>{action.desc}</p>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 8, color: C.primary }}>{action.impact}</span>
+                            <span style={{ fontSize: 8.5, color: '#2563eb', fontWeight: 700 }}>{action.impact}</span>
                             <button onClick={() => {
                               const s = new Set(approvedActions)
                               if (s.has(action.id)) s.delete(action.id); else s.add(action.id)
                               setApprovedActions(s)
                             }} style={{
-                              background: approved ? 'rgba(16,185,129,0.15)' : 'rgba(212,168,71,0.08)',
-                              border: approved ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(212,168,71,0.3)',
-                              borderRadius: 4, padding: '3px 9px',
-                              color: approved ? C.secondary : C.primary,
-                              fontSize: 8.5, fontWeight: 700, cursor: 'pointer',
+                              background: approved ? '#d1fae5' : '#fef3c7',
+                              border: approved ? '1px solid #6ee7b7' : '1px solid #fde68a',
+                              borderRadius: 4, padding: '4px 10px',
+                              color: approved ? '#047857' : '#b45309',
+                              fontSize: 8.5, fontWeight: 800, cursor: 'pointer',
                             }}>
                               {approved ? '✓ Approved' : 'Approve'}
                             </button>
@@ -1528,11 +1547,11 @@ export default function NationalEnergyTwin() {
                 {/* Decision Log */}
                 {approvedActions.size > 0 && (
                   <div>
-                    <div style={{ fontSize: 9, color: C.textDim, letterSpacing: '1.5px', marginBottom: 6 }}>DECISION LOG</div>
-                    <div style={{ background: 'rgba(8, 16, 28, 0.6)', border: `1px solid ${C.borderFaint}`, borderRadius: 5, padding: 8 }}>
+                    <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 6, fontWeight: 800 }}>DECISION LOG</div>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 9 }}>
                       {Array.from(approvedActions).map(act => (
-                        <div key={act} style={{ fontSize: 8, color: C.secondary, marginBottom: 3, display: 'flex', gap: 6 }}>
-                          <span style={{ color: C.textFaint }}>{new Date().toTimeString().split(' ')[0]}</span>
+                        <div key={act} style={{ fontSize: 8.5, color: '#059669', marginBottom: 3, display: 'flex', gap: 6, fontWeight: 600 }}>
+                          <span style={{ color: '#94a3b8' }}>{new Date().toTimeString().split(' ')[0]}</span>
                           <span>✓ {act.toUpperCase()} approved — Day {simDay}</span>
                         </div>
                       ))}
@@ -1550,15 +1569,16 @@ export default function NationalEnergyTwin() {
 
 function btnStyle(color: string): React.CSSProperties {
   return {
-    background: 'rgba(8, 16, 28, 0.6)',
+    background: '#ffffff',
     border: `1px solid ${color}`,
     borderRadius: 5,
-    padding: '5px 12px',
+    padding: '6px 13px',
     color,
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: 'pointer',
     letterSpacing: '0.5px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
     fontFamily: "'JetBrains Mono', monospace",
   }
 }

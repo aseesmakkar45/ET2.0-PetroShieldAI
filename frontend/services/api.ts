@@ -4,10 +4,10 @@ import type {
   SPRAdvisory, KnowledgeGraphData, MapData, PriceHistory, NewsItem
 } from '@/types'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' }
 })
