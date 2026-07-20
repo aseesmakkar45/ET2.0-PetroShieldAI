@@ -14,7 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts'
-import { getDashboard, getMapData, api, API_BASE_URL } from '@/services/api'
+import { getDashboard, getMapData, getMaritimeWeather, api, API_BASE_URL } from '@/services/api'
 
 // Dynamically import Leaflet Map to avoid SSR errors
 const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
@@ -164,6 +164,14 @@ export default function CommandCenter({ view }: { view?: string }) {
     queryKey: ['map'],
     queryFn: getMapData,
     refetchInterval: 5000,
+  })
+
+  // 2b. Fetch maritime weather (live, 1hr cache on backend)
+  const { data: weatherData } = useQuery({
+    queryKey: ['maritime-weather'],
+    queryFn: getMaritimeWeather,
+    refetchInterval: 60 * 60 * 1000, // Re-fetch every hour (matches backend cache)
+    staleTime: 55 * 60 * 1000,
   })
 
   // 3. Fetch decision replay trace
@@ -630,7 +638,7 @@ export default function CommandCenter({ view }: { view?: string }) {
           {mapLoading ? (
             <div className="skeleton" style={{ height: '100%' }} />
           ) : (
-            <GlobalMap key="mini-map" mapData={mapData} />
+            <GlobalMap key="mini-map" mapData={mapData} weatherData={weatherData} />
           )}
         </div>
       </div>
@@ -2037,7 +2045,7 @@ export default function CommandCenter({ view }: { view?: string }) {
         {mapLoading ? (
           <div className="skeleton" style={{ height: '100%' }} />
         ) : (
-          <GlobalMap key="full-map" mapData={mapData} layers={layers} />
+          <GlobalMap key="full-map" mapData={mapData} layers={layers} weatherData={weatherData} />
         )}
       </div>
     )

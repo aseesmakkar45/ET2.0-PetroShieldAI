@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { MapData } from '@/types'
@@ -35,12 +35,28 @@ const portIcon = createIcon('#10b981')
 const refineryIcon = createIcon('#f97316')
 const sprIcon = createIcon('#eab308')
 
+interface WeatherLocation {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  type: string
+  wave_height_m: number | null
+  wind_speed_kmh: number | null
+  wind_direction_label: string | null
+  sea_surface_temp_c: number | null
+  operational_risk: string
+  advisory: string
+  daily_flow_mbd: number
+}
+
 interface Props {
   mapData?: MapData
   layers?: Record<string, boolean>
+  weatherData?: { locations: WeatherLocation[]; fleet_risk: string; fleet_advisory: string } | null
 }
 
-export default function GlobalMap({ mapData, layers }: Props) {
+export default function GlobalMap({ mapData, layers, weatherData }: Props) {
   const [mapKey, setMapKey] = useState<string>("")
   useEffect(() => {
     setMapKey("map-" + Math.random().toString(36).substr(2, 9))
@@ -58,6 +74,7 @@ export default function GlobalMap({ mapData, layers }: Props) {
   const L_CHOKEPOINTS = layers?.chokepoints ?? true
   const L_SUPPLIERS   = layers?.suppliers   ?? true
   const L_STORAGE     = layers?.storage     ?? true
+  const L_WEATHER     = layers?.weather     ?? false
 
   return (
     <div style={{ width: '100%', height: '100%', background: '#f8fafc' }}>
@@ -201,6 +218,79 @@ export default function GlobalMap({ mapData, layers }: Props) {
             </Popup>
           </Marker>
         ))}
+
+        {/* ── LIVE WEATHER LAYER — toggled by Weather & Cyclones ── */}
+        {L_WEATHER && weatherData?.locations?.map(loc => {
+          const riskColor = loc.operational_risk === 'SEVERE'   ? '#ef4444'
+                          : loc.operational_risk === 'ELEVATED'  ? '#f97316'
+                          : loc.operational_risk === 'MODERATE'  ? '#eab308'
+                          : '#10b981'
+
+          const radius = loc.type === 'chokepoint' ? 180000 : 80000
+
+          const weatherIcon = new L.DivIcon({
+            className: 'weather-icon',
+            html: `<div style="
+              background: ${riskColor}22;
+              border: 2px solid ${riskColor};
+              border-radius: 50%;
+              width: 22px; height: 22px;
+              display: flex; align-items: center; justify-content: center;
+              font-size: 11px;
+              box-shadow: 0 0 12px ${riskColor}66;
+            ">🌊</div>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          })
+
+          return (
+            <React.Fragment key={`weather_${loc.id}`}>
+              {/* Translucent risk radius */}
+              <Circle
+                center={[loc.lat, loc.lng]}
+                radius={radius}
+                color={riskColor}
+                fillColor={riskColor}
+                fillOpacity={0.08}
+                weight={1.5}
+                opacity={0.5}
+              />
+              {/* Weather marker with popup */}
+              <Marker position={[loc.lat, loc.lng]} icon={weatherIcon}>
+                <Popup>
+                  <div style={{ padding: 6, minWidth: 220, fontFamily: 'system-ui' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                        🌊 {loc.name}
+                      </h3>
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                        borderRadius: 4, color: '#fff',
+                        background: riskColor
+                      }}>
+                        {loc.operational_risk}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#475569', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+                      {loc.wave_height_m != null && <div><strong>Wave Height:</strong> {loc.wave_height_m.toFixed(1)} m</div>}
+                      {loc.wind_speed_kmh != null && <div><strong>Wind:</strong> {loc.wind_speed_kmh.toFixed(0)} km/h {loc.wind_direction_label || ''}</div>}
+                      {loc.sea_surface_temp_c != null && <div><strong>Sea Temp:</strong> {loc.sea_surface_temp_c.toFixed(1)}°C</div>}
+                      {loc.daily_flow_mbd > 0 && <div><strong>Flow:</strong> {loc.daily_flow_mbd} MBD</div>}
+                    </div>
+                    <div style={{
+                      marginTop: 8, fontSize: 10.5, color: loc.operational_risk === 'NORMAL' ? '#059669' : '#dc2626',
+                      background: loc.operational_risk === 'NORMAL' ? '#f0fdf4' : '#fef2f2',
+                      padding: '5px 8px', borderRadius: 6
+                    }}>
+                      {loc.advisory}
+                    </div>
+                    <div style={{ marginTop: 5, fontSize: 9, color: '#94a3b8' }}>Source: Open-Meteo Marine API (live)</div>
+                  </div>
+                </Popup>
+              </Marker>
+            </React.Fragment>
+          )
+        })}
       </MapContainer>
     </div>
   )

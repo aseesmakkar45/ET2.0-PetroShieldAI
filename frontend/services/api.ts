@@ -53,3 +53,7 @@ export const getKnowledgeGraph = (): Promise<KnowledgeGraphData> =>
 // ─── Map ──────────────────────────────────────────────────────────────────────
 export const getMapData = (): Promise<MapData> =>
   api.get('/api/map').then(r => r.data)
+
+// ─── Maritime Weather ──────────────────────────────────────────────────────────
+export const getMaritimeWeather = (): Promise<any> =>
+  api.get('/api/weather/maritime').then(r => r.data)

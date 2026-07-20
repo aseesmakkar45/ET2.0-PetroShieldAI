@@ -16,7 +16,7 @@ from websocket.manager import (
     alert_manager, vessel_manager, log_manager,
     risk_alert_broadcaster, vessel_position_broadcaster
 )
-from routes import dashboard, signals, scenarios, procurement, spr, knowledge_graph, map as map_router, decision_replay, reports, auth
+from routes import dashboard, signals, scenarios, procurement, spr, knowledge_graph, map as map_router, decision_replay, reports, auth, weather
 
 
 # ─── Live Stdout Redirector to WebSocket ──────────────────────────────────────
@@ -283,7 +283,8 @@ app.add_middleware(
 )
 
 # ─── REST Routes ──────────────────────────────────────────────────────────────
-app.include_router(auth.router, prefix="/api", tags=["Auth"])
+app.include_router(auth.router,     prefix="/api", tags=["Auth"])
+app.include_router(weather.router,  prefix="/api", tags=["Weather"])
 app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
 app.include_router(signals.router, prefix="/api", tags=["Signals"])
 app.include_router(scenarios.router, prefix="/api", tags=["Scenarios"])
