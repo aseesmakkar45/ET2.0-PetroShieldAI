@@ -11,20 +11,34 @@ router = APIRouter()
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
+# Cache static map data in memory so we don't do disk I/O on every request
+_cached_routes = None
+_cached_chokepoints = None
+_cached_ports = None
+_cached_refineries = None
+_cached_oil_fields = None
+
+def load_static_data():
+    global _cached_routes, _cached_chokepoints, _cached_ports, _cached_refineries, _cached_oil_fields
+    if _cached_routes is None:
+        with open(DATA_DIR / "routes.json") as f:
+            _cached_routes = json.load(f)
+        with open(DATA_DIR / "chokepoints.json") as f:
+            _cached_chokepoints = json.load(f)
+        with open(DATA_DIR / "ports.json") as f:
+            _cached_ports = json.load(f)
+        with open(DATA_DIR / "refineries.json") as f:
+            _cached_refineries = json.load(f)
+        with open(DATA_DIR / "oil_fields.json") as f:
+            _cached_oil_fields = json.load(f)
+    # Return deep copies so we don't mutate the global cache with risk_score updates below
+    import copy
+    return copy.deepcopy(_cached_routes), copy.deepcopy(_cached_chokepoints), _cached_ports, _cached_refineries, _cached_oil_fields
+
 @router.get("/map")
 async def get_map_data():
     state = get_active_state()
-    
-    with open(DATA_DIR / "routes.json") as f:
-        routes = json.load(f)
-    with open(DATA_DIR / "chokepoints.json") as f:
-        chokepoints = json.load(f)
-    with open(DATA_DIR / "ports.json") as f:
-        ports = json.load(f)
-    with open(DATA_DIR / "refineries.json") as f:
-        refineries = json.load(f)
-    with open(DATA_DIR / "oil_fields.json") as f:
-        oil_fields = json.load(f)
+    routes, chokepoints, ports, refineries, oil_fields = load_static_data()
 
     # Combined live AIS stream and simulated tankers
     vessels = generate_vessels()

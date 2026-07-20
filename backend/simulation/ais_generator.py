@@ -42,7 +42,24 @@ def _interpolate_route(waypoints: List[Dict], progress: float) -> Dict:
     return {"lat": round(lat, 5), "lng": round(lng, 5)}
 
 
-def generate_vessels(count: int = 45) -> List[Dict[str, Any]]:
+_cached_sim_routes = None
+
+def _get_routes():
+    global _cached_sim_routes
+    if _cached_sim_routes is None:
+        try:
+            routes_path = DATA_DIR / "routes.json"
+            if routes_path.exists():
+                with open(routes_path, "r") as f:
+                    _cached_sim_routes = json.load(f)
+            else:
+                _cached_sim_routes = []
+        except Exception as e:
+            print(f"[AIS] Error loading routes.json: {e}")
+            _cached_sim_routes = []
+    return _cached_sim_routes
+
+def generate_vessels(count: int = 15) -> List[Dict[str, Any]]:
     """
     Returns combined vessel fleet:
     1. Real-time tracked AIS vessels from aisstream.io (data_source = 'LIVE')
@@ -61,16 +78,7 @@ def generate_vessels(count: int = 45) -> List[Dict[str, Any]]:
         print(f"[AIS] Error loading live vessels: {e}")
 
     # 2. Add 15-20 synthetic vessels moving along routes.json at 14 knots
-    try:
-        routes_path = DATA_DIR / "routes.json"
-        if routes_path.exists():
-            with open(routes_path, "r") as f:
-                routes = json.load(f)
-        else:
-            routes = []
-    except Exception as e:
-        print(f"[AIS] Error loading routes.json: {e}")
-        routes = []
+    routes = _get_routes()
 
     if not routes:
         return vessels
