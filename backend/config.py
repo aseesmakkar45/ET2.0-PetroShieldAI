@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     AISSTREAM_API_KEY: str = ""
     EIA_API_KEY: str = ""
     NEWSAPI_KEY: str = ""
+    NEWSDATA_API_KEY: str = ""   # https://newsdata.io/register — free 200 req/day
+    GNEWS_API_KEY: str = ""      # https://gnews.io/ — free 100 req/day
 
     # ─── Groq LLM API Keys ──────────────────────────────────────────────────────
     GROQ_API_KEY: str = ""
