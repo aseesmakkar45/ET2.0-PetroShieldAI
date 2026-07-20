@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Lock, User, Eye, EyeOff, AlertTriangle, Zap } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-type DemoAccount = { role: string; email: string }
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,22 +14,6 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([])
-
-  // Fetch demo account emails from the backend (no passwords exposed)
-  useEffect(() => {
-    fetch(`${API_URL}/api/auth/demo-accounts`)
-      .then(r => r.json())
-      .then(data => setDemoAccounts(data))
-      .catch(() => {
-        // Fallback: show roles without auto-fill if backend is unavailable
-        setDemoAccounts([
-          { role: 'Admin', email: 'admin@petroshield.ai' },
-          { role: 'Analyst', email: 'analyst@petroshield.ai' },
-          { role: 'Policy Maker', email: 'policy@petroshield.ai' },
-        ])
-      })
-  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,13 +28,9 @@ export default function LoginPage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
-        // Store role in session storage (no sensitive data)
-        sessionStorage.setItem('ps_role', data.role)
-        sessionStorage.setItem('ps_user', data.name)
         router.push('/dashboard')
       } else {
-        setError('Invalid credentials. Please try a demo account below.')
+        setError('Invalid credentials. Please try again.')
         setLoading(false)
       }
     } catch {
@@ -85,12 +63,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        style={{
-          width: '100%',
-          maxWidth: 460,
-          position: 'relative',
-          zIndex: 1,
-        }}
+        style={{ width: '100%', maxWidth: 460, position: 'relative', zIndex: 1 }}
       >
         {/* Logo block */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -101,9 +74,7 @@ export default function LoginPage() {
               width: 72, height: 72,
               background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)',
               borderRadius: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 16px',
             }}
           >
@@ -125,9 +96,7 @@ export default function LoginPage() {
             border: '1px solid rgba(239, 68, 68, 0.25)',
             borderRadius: 8,
             padding: '8px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
+            display: 'flex', alignItems: 'center', gap: 8,
             marginBottom: 24,
           }}>
             <AlertTriangle size={14} color="#ef4444" />
@@ -149,6 +118,7 @@ export default function LoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   className="input"
                   style={{ paddingLeft: 36 }}
+                  placeholder="Enter your email"
                   required
                 />
               </div>
@@ -166,6 +136,7 @@ export default function LoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   className="input"
                   style={{ paddingLeft: 36, paddingRight: 36 }}
+                  placeholder="Enter your password"
                   required
                 />
                 <button
@@ -187,10 +158,8 @@ export default function LoginPage() {
                   style={{
                     background: 'rgba(239, 68, 68, 0.1)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: 8,
-                    padding: '10px 14px',
-                    fontSize: 13,
-                    color: '#fca5a5',
+                    borderRadius: 8, padding: '10px 14px',
+                    fontSize: 13, color: '#fca5a5',
                   }}
                 >
                   {error}
@@ -223,42 +192,6 @@ export default function LoginPage() {
               )}
             </motion.button>
           </form>
-
-          <div className="divider" />
-
-          {/* Demo accounts — emails only, passwords never shown */}
-          <div>
-            <p style={{ fontSize: 11, color: '#334155', fontWeight: 600, letterSpacing: '0.5px', marginBottom: 10, textAlign: 'center' }}>
-              DEMO ACCOUNTS — click to select
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {demoAccounts.map(c => (
-                <button
-                  key={c.role}
-                  onClick={() => setEmail(c.email)}
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.06)',
-                    border: '1px solid rgba(59, 130, 246, 0.12)',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'all 200ms',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(59,130,246,0.12)')}
-                >
-                  <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 600 }}>{c.role}</span>
-                  <span style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>{c.email}</span>
-                </button>
-              ))}
-            </div>
-            <p style={{ fontSize: 10, color: '#1e293b', textAlign: 'center', marginTop: 10 }}>
-              Contact your administrator for access credentials
-            </p>
-          </div>
         </div>
       </motion.div>
     </div>

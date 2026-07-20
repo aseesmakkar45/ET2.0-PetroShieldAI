@@ -21,13 +21,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_API_KEYS: str = ""
 
-    # ─── Demo Portal Credentials (stored server-side ONLY) ─────────────────────
-    DEMO_ADMIN_EMAIL: str = "admin@petroshield.ai"
-    DEMO_ADMIN_PASSWORD: str = "admin123"
-    DEMO_ANALYST_EMAIL: str = "analyst@petroshield.ai"
-    DEMO_ANALYST_PASSWORD: str = "analyst123"
-    DEMO_POLICY_EMAIL: str = "policy@petroshield.ai"
-    DEMO_POLICY_PASSWORD: str = "policy123"
+    # ─── Portal Login Credentials (stored server-side ONLY) ──────────────────
+    PORTAL_EMAIL: str = "admin@petroshield.ai"
+    PORTAL_PASSWORD: str = "petroshield2026"
 
     class Config:
         env_file = ".env"
