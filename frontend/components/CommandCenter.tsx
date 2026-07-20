@@ -134,8 +134,10 @@ export default function CommandCenter({ view }: { view?: string }) {
     syncHash()
     
     // Setup WS toast alerts
-    const wsUrl = window.location.origin.replace('http', 'ws')
-    const ws = new WebSocket(`${wsUrl}/ws/alerts`)
+    const cleanHost = API_BASE_URL.replace(/^https?:\/\//, '')
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const wsUrl = `${wsProto}://${cleanHost}/ws/alerts`
+    const ws = new WebSocket(wsUrl)
     
     ws.onmessage = (event) => {
       try {
@@ -1936,8 +1938,8 @@ export default function CommandCenter({ view }: { view?: string }) {
           gap: 2,
           boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.9)'
         }}>
-          {systemLogs.length > 0 ? (
-            systemLogs.map((log, idx) => {
+          {systemLogs.filter(l => l.trim().length > 0).length > 0 ? (
+            systemLogs.filter(l => l.trim().length > 0).map((log, idx) => {
               // Color-code log lines by prefix
               const isAgent1     = log.includes('[AGENT 1')
               const isAgent2to5  = /\[AGENT [2-5]/.test(log)
@@ -2018,10 +2020,10 @@ export default function CommandCenter({ view }: { view?: string }) {
   }
 
   // Map Card
-  function renderMapCard(height = 580, layers?: Record<string, boolean>) {
+  function renderMapCard(height: number | string = 580, layers?: Record<string, boolean>) {
     const vesselsCount = mapData?.vessels?.length ?? 45
     return (
-      <div className="glass-card" style={{ height: `${height}px`, overflow: 'hidden', position: 'relative' }}>
+      <div className="glass-card" style={{ height: typeof height === 'number' ? `${height}px` : height, overflow: 'hidden', position: 'relative' }}>
         <div style={{
           position: 'absolute',
           top: 12, left: 12,
@@ -2849,7 +2851,7 @@ export default function CommandCenter({ view }: { view?: string }) {
         {/* Right Side: Map (Central Focus) + Live System Terminal */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
-            {renderMapCard(460, mapLayers)}
+            {renderMapCard('100%', mapLayers)}
           </div>
           {renderLiveTerminalLogsCard()}
         </div>

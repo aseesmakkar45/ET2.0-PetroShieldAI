@@ -42,7 +42,7 @@ def _interpolate_route(waypoints: List[Dict], progress: float) -> Dict:
     return {"lat": round(lat, 5), "lng": round(lng, 5)}
 
 
-def generate_vessels(count: int = 15) -> List[Dict[str, Any]]:
+def generate_vessels(count: int = 45) -> List[Dict[str, Any]]:
     """
     Returns combined vessel fleet:
     1. Real-time tracked AIS vessels from aisstream.io (data_source = 'LIVE')
