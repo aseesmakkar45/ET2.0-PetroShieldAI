@@ -15,7 +15,7 @@ from config import settings, get_gemini_api_key
 from services.event_intel import fetch_article_content
 
 logger = logging.getLogger("uvicorn.error")
-_DEFAULT_MODEL = "gemini-3.5-flash"
+_DEFAULT_MODEL = "gemini-2.0-flash"
 
 
 class GeminiPromptingAgent:

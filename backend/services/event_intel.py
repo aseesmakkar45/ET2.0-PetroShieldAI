@@ -22,7 +22,7 @@ from dataclasses import dataclass, field, asdict
 logger = logging.getLogger("uvicorn.error")
 
 # ── Gemini model to use for event understanding ──────────────────────────────
-_GEMINI_MODEL = "gemini-3.5-flash"
+_GEMINI_MODEL = "gemini-2.0-flash"
 
 # ── Known entity vocabularies for enhanced fallback extraction ────────────────
 _CHOKEPOINTS = {
@@ -424,9 +424,13 @@ def extract_event_intelligence(
             logger.warning("[EventIntel] Article fetch failed — using URL string as fallback text.")
             source_text = raw_signal  # Use URL as text hint
 
+    # Resolve API Key dynamically from rotation pool if not provided
+    from config import get_gemini_api_key
+    resolved_key = api_key or get_gemini_api_key() or ""
+
     # Try Gemini extraction first
-    if api_key:
-        result = _extract_with_gemini(source_text, api_key)
+    if resolved_key:
+        result = _extract_with_gemini(source_text, resolved_key)
         if result is not None:
             return result
         logger.warning("[EventIntel] Gemini extraction failed — falling back to keyword extraction.")

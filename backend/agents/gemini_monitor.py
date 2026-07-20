@@ -24,7 +24,7 @@ def audit_and_brief_with_gemini(state) -> Optional[Dict[str, Any]]:
     try:
         # Configure Gemini
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
 
         # Gather inputs from local agents
         raw_signal = state.raw_signal
