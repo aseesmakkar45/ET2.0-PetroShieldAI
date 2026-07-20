@@ -1570,7 +1570,7 @@ export default function CommandCenter({ view }: { view?: string }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }}></span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.5px' }}>
-                  LIVE REAL-TIME PYTHON ENGINE EXECUTION TERMINAL (ws://localhost:8000/ws/logs)
+                  LIVE REAL-TIME PYTHON ENGINE EXECUTION TERMINAL ({API_BASE_URL.startsWith('https') ? 'wss' : 'ws'}://{API_BASE_URL.replace(/^https?:\/\//, '')}/ws/logs)
                 </span>
               </div>
               <span style={{ fontSize: 9.5, color: '#64748b', fontWeight: 600 }}>STDOUT RUNTIME TELEMETRY</span>
