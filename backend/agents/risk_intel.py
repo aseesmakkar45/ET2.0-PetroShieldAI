@@ -19,7 +19,7 @@ from services.knowledge_graph import get_graph
 from services.graph_rag import query_graph_rag
 from services.event_intel import extract_event_intelligence, EventIntelligence
 from services.live_connectors import connectors
-from config import settings, get_gemini_api_key
+from config import settings, get_groq_api_key
 
 
 class LatLng(BaseModel):

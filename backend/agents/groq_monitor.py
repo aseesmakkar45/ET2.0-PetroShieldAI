@@ -6,25 +6,23 @@ import json
 import logging
 import re
 from typing import Dict, Any, Optional
-import google.generativeai as genai
-from config import settings, get_gemini_api_key
+from config import settings, get_groq_api_key
 
 logger = logging.getLogger("uvicorn.error")
 
-def audit_and_brief_with_gemini(state) -> Optional[Dict[str, Any]]:
+def audit_and_brief_with_groq(state) -> Optional[Dict[str, Any]]:
     """
     Query Gemini API to audit predictions across local agents,
     verify consistency, and generate dynamic briefings and narratives.
     """
-    api_key = get_gemini_api_key() or ""
+    api_key = get_groq_api_key() or ""
     if not api_key:
-        logger.info("[GEMINI MONITOR] No GEMINI_API_KEY configured. Skipping LLM audit/briefing.")
+        logger.info("[GROQ MONITOR] No GROQ_API_KEY configured. Skipping LLM audit/briefing.")
         return None
 
     try:
-        # Configure Gemini
-        from google import genai
-        client = genai.Client(api_key=api_key)
+        from groq import Groq
+        client = Groq(api_key=api_key)
 
         # Gather inputs from local agents
         raw_signal = state.raw_signal
@@ -137,21 +135,25 @@ You MUST respond ONLY with a raw JSON object (no markdown fence blocks like ```j
   ]
 }}
 """
-        logger.info("[GEMINI MONITOR] Sending audit payload to Gemini model...")
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        text = response.text.strip()
+        logger.info("[GROQ MONITOR] Sending audit payload to Groq model...")
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=0.0
+        )
+        text = response.choices[0].message.content.strip()
         
         # Clean any accidental markdown code fences
         if text.startswith("```"):
-            text = re.sub(r"^```[a-zA-Z]*\n", "", text)
-            text = re.sub(r"\n```$", "", text)
+            text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+            text = re.sub(r"\n?```$", "", text)
         
         data = json.loads(text.strip())
-        logger.info("[GEMINI MONITOR] Successfully audited and generated dynamic brief.")
+        logger.info("[GROQ MONITOR] Successfully audited and generated dynamic brief.")
         return data
 
     except Exception as exc:
-        logger.error(f"[GEMINI MONITOR] Error calling Gemini API: {exc}. Falling back to data-driven local briefing generator.")
+        logger.error(f"[GROQ MONITOR] Error calling Groq API: {exc}. Falling back to data-driven local briefing generator.")
         return _get_fallback_executive_briefing(state)
 
 
@@ -383,20 +385,20 @@ def _get_fallback_risk_audit(risk_signal, raw_signal: str) -> Dict[str, Any]:
     }
 
 
-def audit_risk_prediction_with_gemini(risk_signal, raw_signal: str) -> Optional[Dict[str, Any]]:
+def audit_risk_prediction_with_groq(risk_signal, raw_signal: str) -> Optional[Dict[str, Any]]:
     """
     Independent Gemini audit and validation of the subagent risk predictions.
     Checks logical consistency, supporting/contradictory evidence, confidence level,
     assumptions, and weaknesses/uncertainties.
     """
-    api_key = get_gemini_api_key() or ""
+    api_key = get_groq_api_key() or ""
     if not api_key:
-        logger.info("[GEMINI RISK AUDIT] No GEMINI_API_KEY. Using high-fidelity local simulation fallback.")
+        logger.info("[GROQ RISK AUDIT] No GROQ_API_KEY. Using high-fidelity local simulation fallback.")
         return _get_fallback_risk_audit(risk_signal, raw_signal)
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-3.5-flash')
+        from groq import Groq
+        client = Groq(api_key=api_key)
 
         signal_data = {
             "event_summary": risk_signal.event_summary,
@@ -450,18 +452,22 @@ Return ONLY a raw JSON object matching the schema below (do NOT include markdown
   "adjusted_supply_impact_mbpd": 2.4
 }}
 """
-        logger.info("[GEMINI RISK AUDIT] Requesting risk audit validation from Gemini...")
-        response = model.generate_content(prompt, request_options={"timeout": 10.0})
-        text = response.text.strip()
+        logger.info("[GROQ RISK AUDIT] Requesting risk audit validation from Groq...")
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=0.0
+        )
+        text = response.choices[0].message.content.strip()
         
         if text.startswith("```"):
-            text = re.sub(r"^```[a-zA-Z]*\n", "", text)
-            text = re.sub(r"\n```$", "", text)
+            text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+            text = re.sub(r"\n?```$", "", text)
             
         data = json.loads(text.strip())
-        logger.info("[GEMINI RISK AUDIT] Successfully audited risk prediction.")
+        logger.info("[GROQ RISK AUDIT] Successfully audited risk prediction.")
         return data
     except Exception as exc:
-        logger.error(f"[GEMINI RISK AUDIT] Error running Gemini risk audit: {exc}. Falling back to high-fidelity local simulation.")
+        logger.error(f"[GROQ RISK AUDIT] Error running Groq risk audit: {exc}. Falling back to high-fidelity local simulation.")
         return _get_fallback_risk_audit(risk_signal, raw_signal)
 

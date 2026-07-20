@@ -1,6 +1,6 @@
 """
 Gemini Prompting Agent – Dedicated multi-stage LLM Orchestration Agent.
-Prompts Google Gemini for:
+Prompts Groq for:
 1. News Article Semantic Context Extraction (Task 1)
 2. Multi-Agent Prediction & Sanctions Audits (Task 2)
 3. Executive Scenario Report Generation (Task 3)
@@ -10,44 +10,45 @@ import logging
 import re
 from typing import Dict, Any, Optional
 
-from config import settings, get_gemini_api_key
+from config import settings, get_groq_api_key
 from services.event_intel import fetch_article_content
 
 logger = logging.getLogger("uvicorn.error")
-_DEFAULT_MODEL = "gemini-2.0-flash"
+_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 
-class GeminiPromptingAgent:
+class GroqPromptingAgent:
     """
-    Unified Prompting Agent for Google Gemini LLM across all 3 workflow stages.
+    Unified Prompting Agent for Groq LLM across all 3 workflow stages.
     """
 
     def __init__(self, model_name: str = _DEFAULT_MODEL):
         self.model_name = model_name
 
-    def _call_gemini(self, prompt: str, system_instruction: str = "") -> Optional[str]:
-        """Helper to invoke Gemini API with key rotation and fallback."""
-        api_key = get_gemini_api_key() or ""
+    def _call_groq(self, prompt: str, system_instruction: str = "") -> Optional[str]:
+        """Helper to invoke Groq API with key rotation and fallback."""
+        api_key = get_groq_api_key() or ""
         if not api_key:
-            logger.warning("[GEMINI AGENT] No GEMINI_API_KEY available.")
+            logger.warning("[GROQ AGENT] No GROQ_API_KEY available.")
             return None
 
         try:
-            from google import genai
-            from google.genai import types
+            from groq import Groq
+            client = Groq(api_key=api_key)
             
-            client = genai.Client(api_key=api_key)
-            config = types.GenerateContentConfig(
-                system_instruction=system_instruction if system_instruction else None,
-            )
-            response = client.models.generate_content(
+            messages = []
+            if system_instruction:
+                messages.append({"role": "system", "content": system_instruction})
+            messages.append({"role": "user", "content": prompt})
+                
+            response = client.chat.completions.create(
                 model=self.model_name,
-                contents=prompt,
-                config=config
+                messages=messages,
+                temperature=0.0
             )
-            return response.text if response else None
+            return response.choices[0].message.content if response else None
         except Exception as e:
-            logger.error(f"[GEMINI AGENT] API execution error: {e}")
+            logger.error(f"[GROQ AGENT] API execution error: {e}")
             return None
 
     def _clean_json(self, text: str) -> Optional[Dict[str, Any]]:
@@ -61,7 +62,7 @@ class GeminiPromptingAgent:
         try:
             return json.loads(cleaned)
         except Exception as e:
-            logger.error(f"[GEMINI AGENT] Failed to parse JSON response: {e}")
+            logger.error(f"[GROQ AGENT] Failed to parse JSON response: {e}")
             return None
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -75,12 +76,12 @@ class GeminiPromptingAgent:
         # Handle live URL scraping if input starts with http
         raw_text = news_input
         if news_input.strip().startswith("http://") or news_input.strip().startswith("https://"):
-            logger.info(f"[GEMINI AGENT] Scraping live news URL: {news_input}")
+            logger.info(f"[GROQ AGENT] Scraping live news URL: {news_input}")
             fetched = fetch_article_content(news_input.strip())
             if fetched:
                 raw_text = fetched
             else:
-                logger.warning(f"[GEMINI AGENT] Scraper fallback to raw URL string.")
+                logger.warning(f"[GROQ AGENT] Scraper fallback to raw URL string.")
 
         system_instruction = (
             "You are the Senior Geopolitical & Maritime Supply Chain Intelligence Analyst for the Cabinet Taskforce (NECC).\n"
@@ -106,15 +107,15 @@ class GeminiPromptingAgent:
         )
 
         prompt = f"Parse and extract semantic supply chain risk intelligence from this news article:\n\n{raw_text[:4000]}"
-        response_text = self._call_gemini(prompt, system_instruction)
+        response_text = self._call_groq(prompt, system_instruction)
         parsed_data = self._clean_json(response_text)
 
         if parsed_data:
-            logger.info(f"[GEMINI AGENT] ✅ Stage 1 News Parsing successful. Event: {parsed_data.get('event_type')}")
+            logger.info(f"[GROQ AGENT] ✅ Stage 1 News Parsing successful. Event: {parsed_data.get('event_type')}")
             return parsed_data
         
         # Heuristic fallback if LLM is unreachable or quota limited
-        logger.warning("[GEMINI AGENT] Stage 1 fallback activated.")
+        logger.warning("[GROQ AGENT] Stage 1 fallback activated.")
         return {
             "event_type": "MILITARY_CONFLICT" if "blockade" in raw_text.lower() or "attack" in raw_text.lower() else "SHIPPING_DISRUPTION",
             "summary": raw_text[:200] + "...",
@@ -160,14 +161,14 @@ class GeminiPromptingAgent:
         )
 
         prompt = f"Audit the following PetroShield AI system simulation state:\n\n{json.dumps(system_state_summary, indent=2)}"
-        response_text = self._call_gemini(prompt, system_instruction)
+        response_text = self._call_groq(prompt, system_instruction)
         parsed_audit = self._clean_json(response_text)
 
         if parsed_audit:
-            logger.info(f"[GEMINI AGENT] ✅ Stage 2 Audit successful. Verdict: {parsed_audit.get('audit_verdict')}")
+            logger.info(f"[GROQ AGENT] ✅ Stage 2 Audit successful. Verdict: {parsed_audit.get('audit_verdict')}")
             return parsed_audit
 
-        logger.warning("[GEMINI AGENT] Stage 2 fallback activated.")
+        logger.warning("[GROQ AGENT] Stage 2 fallback activated.")
         return {
             "audit_pass": True,
             "confidence_score": 92,
@@ -226,14 +227,14 @@ class GeminiPromptingAgent:
             f"using the following scenario simulation data:\n\n{json.dumps(scenario_data, indent=2)}"
         )
 
-        response_text = self._call_gemini(prompt, system_instruction)
+        response_text = self._call_groq(prompt, system_instruction)
         parsed_report = self._clean_json(response_text)
 
         if parsed_report:
-            logger.info(f"[GEMINI AGENT] ✅ Stage 3 Executive Report generation successful.")
+            logger.info(f"[GROQ AGENT] ✅ Stage 3 Executive Report generation successful.")
             return parsed_report
 
-        logger.warning("[GEMINI AGENT] Stage 3 fallback activated.")
+        logger.warning("[GROQ AGENT] Stage 3 fallback activated.")
         return {
             "title": report_type,
             "status": "CABINET COMMISSION VERIFIED & APPROVED",
@@ -262,4 +263,4 @@ class GeminiPromptingAgent:
 
 
 # Singleton Instance
-gemini_prompting_agent = GeminiPromptingAgent()
+groq_prompting_agent = GroqPromptingAgent()

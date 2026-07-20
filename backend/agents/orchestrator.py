@@ -11,7 +11,7 @@ from agents.scenario_modeller import run_scenario_modeller_agent, ScenarioResult
 from agents.procurement import run_procurement_orchestrator_agent, ProcurementPlan
 from agents.spr_advisor import run_spr_advisor_agent, SPRAdvisory
 from agents.executive_briefing import run_executive_briefing_agent
-from agents.gemini_monitor import audit_and_brief_with_gemini, audit_risk_prediction_with_gemini
+from agents.groq_monitor import audit_and_brief_with_groq, audit_risk_prediction_with_groq
 
 
 class DecisionStep(BaseModel := object):
@@ -88,8 +88,8 @@ class PetroShieldState:
             "executive_brief": self.executive_brief,
             "decision_trace": self.decision_trace,
             "execution_log": self.execution_log,
-            "gemini_audit": self.gemini_audit,
-            "gemini_risk_validation": self.gemini_risk_validation
+            "groq_audit": self.groq_audit,
+            "groq_risk_validation": self.groq_risk_validation
         }
 
 
@@ -131,34 +131,35 @@ def run_petroshield_pipeline(
     state.decision_trace.append(risk_step.to_dict())
     state.execution_log.append(f"Node 1 finished in {duration}ms. Severity: {state.risk_signal.severity}.")
 
-    # ─── Node 1.5: Gemini Risk Validation Report ─────────────────────────────
-    start_time_gemini_risk = datetime.utcnow()
-    gemini_risk_audit = audit_risk_prediction_with_gemini(state.risk_signal, raw_signal)
-    duration_gemini_risk = int((datetime.utcnow() - start_time_gemini_risk).total_seconds() * 1000)
+    # ─── Node 1.5: Groq Risk Validation Report ─────────────────────────────
+    t0 = datetime.now()
+    risk_audit_result = audit_risk_prediction_with_groq(state.risk_signal, raw_signal)
+    t1 = datetime.now()
+    duration_groq_risk = int((t1 - t0).total_seconds() * 1000)
     
-    if gemini_risk_audit:
-        state.gemini_risk_validation = gemini_risk_audit
+    if risk_audit_result:
+        state.groq_risk_validation = risk_audit_result
         
-        # Override with Gemini's validated prediction
-        state.risk_signal.disruption_probability = gemini_risk_audit.get("adjusted_risk_score", state.risk_signal.disruption_probability)
-        state.risk_signal.severity = gemini_risk_audit.get("adjusted_severity", state.risk_signal.severity)
-        state.risk_signal.estimated_supply_impact_mbpd = gemini_risk_audit.get("adjusted_supply_impact_mbpd", state.risk_signal.estimated_supply_impact_mbpd)
+        # Override with Groq's validated prediction
+        state.risk_signal.disruption_probability = risk_audit_result.get("adjusted_risk_score", state.risk_signal.disruption_probability)
+        state.risk_signal.severity = risk_audit_result.get("adjusted_severity", state.risk_signal.severity)
+        state.risk_signal.estimated_supply_impact_mbpd = risk_audit_result.get("adjusted_supply_impact_mbpd", state.risk_signal.estimated_supply_impact_mbpd)
         
         audit_risk_step = DecisionStep(
             step_index=15,
-            agent_name="Gemini Risk Auditor (Agent 1.5)",
-            timestamp=start_time_gemini_risk.isoformat(),
+            agent_name="Groq Risk Auditor (Agent 1.5)",
+            timestamp=t0.isoformat(),
             input_summary="Initial subagent risk score and Graph-RAG context.",
             reasoning="Audited initial risk score, evaluated contradictory/supporting evidence, potential weaknesses, and validated final prediction.",
-            output_summary=f"Validation: {gemini_risk_audit.get('validation_decision')}. Final Risk Score: {state.risk_signal.disruption_probability}%.",
-            duration_ms=duration_gemini_risk,
+            output_summary=f"Decision: {risk_audit_result.get('validation_decision', 'UNKNOWN')}. Adjusted Risk: {risk_audit_result.get('adjusted_risk_score')}",
+            duration_ms=duration_groq_risk,
             kg_entities_accessed=[],
             confidence=0.96
         )
         state.decision_trace.append(audit_risk_step.to_dict())
-        state.execution_log.append(f"Node 1.5 (Gemini Risk Audit) finished in {duration_gemini_risk}ms. Validated severity: {state.risk_signal.severity}.")
+        state.execution_log.append(f"Node 1.5 (Groq Risk Audit) finished in {duration_groq_risk}ms. Validated severity: {state.risk_signal.severity}.")
     else:
-        state.execution_log.append("Node 1.5 (Gemini Risk Audit) skipped or failed. Running with initial subagent prediction.")
+        state.execution_log.append("Node 1.5 (Groq Risk Audit) skipped or failed. Running with initial subagent prediction.")
 
     # Conditional Routing: If Risk is below threshold, stop pipeline early (MONITOR / ALERT)
     if state.risk_signal.severity in ("MONITOR", "ALERT"):
@@ -248,29 +249,30 @@ def run_petroshield_pipeline(
     state.decision_trace.append(brief_step.to_dict())
     state.execution_log.append(f"Node 5 finished in {duration}ms.")
 
-    # ─── Node 6: Gemini Executive Auditor & Dynamic Monitor ──────────────────
-    start_time_gemini = datetime.utcnow()
-    gemini_data = audit_and_brief_with_gemini(state)
-    duration_gemini = int((datetime.utcnow() - start_time_gemini).total_seconds() * 1000)
+    # ─── Node 6: Groq Executive Auditor & Dynamic Monitor ──────────────────
+    t0 = datetime.now()
+    groq_data = audit_and_brief_with_groq(state)
+    t1 = datetime.now()
+    duration_groq = int((t1 - t0).total_seconds() * 1000)
     
-    if gemini_data:
-        state.executive_brief = gemini_data.get("executive_briefing") or state.executive_brief
-        state.gemini_audit = gemini_data
+    if groq_data:
+        state.executive_brief = groq_data.get("executive_briefing") or state.executive_brief
+        state.groq_audit = groq_data
         
         # Log warnings
-        warnings = gemini_data.get("audit_warnings") or []
+        warnings = groq_data.get("audit_warnings") or []
         for warn in warnings:
             state.execution_log.append(f"[AUDIT WARNING] {warn}")
-            print(f"[AGENT 6 - GeminiAuditor] [WARN] {warn}")
+            print(f"[AGENT 6 - GroqAuditor] [WARN] {warn}")
             
         audit_step = DecisionStep(
             step_index=6,
-            agent_name="Gemini Executive Auditor (Agent 6)",
-            timestamp=start_time_gemini.isoformat(),
+            agent_name="Groq Executive Auditor (Agent 6)",
+            timestamp=t0.isoformat(),
             input_summary="Outputs of agents 1-4 and raw threat signal.",
             reasoning="Audited local calculations for consistency and generated dynamic contextual briefs.",
             output_summary=f"Dynamic briefing generated. Found {len(warnings)} audit warning flags.",
-            duration_ms=duration_gemini,
+            duration_ms=duration_groq,
             kg_entities_accessed=[],
             confidence=0.98
         )
