@@ -187,9 +187,8 @@ def _extract_with_gemini(text: str, api_key: str) -> Optional[EventIntelligence]
     Gemini ONLY performs understanding — no numerical forecasting.
     """
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(_GEMINI_MODEL)
+        from google import genai
+        client = genai.Client(api_key=api_key)
 
         # Truncate text to avoid token limits while keeping key content
         truncated = text[:6000] if len(text) > 6000 else text
@@ -223,7 +222,10 @@ Return ONLY a raw JSON object (no markdown fences, no commentary):
   "uncertainties": ["2-3 key unknowns or factors that could change the assessment"]
 }}"""
 
-        response = model.generate_content(prompt, request_options={"timeout": 15.0})
+        response = client.models.generate_content(
+            model=_GEMINI_MODEL,
+            contents=prompt,
+        )
         raw = response.text.strip()
 
         # Strip any accidental markdown fences

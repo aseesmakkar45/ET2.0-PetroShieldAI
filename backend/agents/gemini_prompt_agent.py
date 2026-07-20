@@ -9,7 +9,6 @@ import json
 import logging
 import re
 from typing import Dict, Any, Optional
-import google.generativeai as genai
 
 from config import settings, get_gemini_api_key
 from services.event_intel import fetch_article_content
@@ -34,12 +33,18 @@ class GeminiPromptingAgent:
             return None
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_instruction if system_instruction else None
+            from google import genai
+            from google.genai import types
+            
+            client = genai.Client(api_key=api_key)
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction if system_instruction else None,
             )
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=config
+            )
             return response.text if response else None
         except Exception as e:
             logger.error(f"[GEMINI AGENT] API execution error: {e}")

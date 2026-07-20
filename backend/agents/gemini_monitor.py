@@ -23,8 +23,8 @@ def audit_and_brief_with_gemini(state) -> Optional[Dict[str, Any]]:
 
     try:
         # Configure Gemini
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        from google import genai
+        client = genai.Client(api_key=api_key)
 
         # Gather inputs from local agents
         raw_signal = state.raw_signal
@@ -138,7 +138,7 @@ You MUST respond ONLY with a raw JSON object (no markdown fence blocks like ```j
 }}
 """
         logger.info("[GEMINI MONITOR] Sending audit payload to Gemini model...")
-        response = model.generate_content(prompt, request_options={"timeout": 10.0})
+        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
         text = response.text.strip()
         
         # Clean any accidental markdown code fences
