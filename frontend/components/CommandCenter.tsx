@@ -2018,9 +2018,11 @@ export default function CommandCenter({ view }: { view?: string }) {
         </div>
         
         {mapLoading ? (
-          <div className="skeleton" style={{ height: '100%' }} />
+          <div className="skeleton" style={{ flex: 1 }} />
         ) : (
-          <GlobalMap key="full-map" mapData={mapData} layers={layers} weatherData={weatherData} />
+          <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+            <GlobalMap key="full-map" mapData={mapData} layers={layers} weatherData={weatherData} />
+          </div>
         )}
       </div>
     )
