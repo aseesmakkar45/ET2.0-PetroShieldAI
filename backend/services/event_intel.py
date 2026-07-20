@@ -183,27 +183,23 @@ def fetch_article_content(url: str, timeout: int = 12) -> str:
 
 def _extract_with_gemini(text: str, api_key: str) -> Optional[EventIntelligence]:
     """
-    Use Gemini to extract structured EventIntelligence from text.
-    Gemini ONLY performs understanding — no numerical forecasting.
+    Use Groq to extract structured EventIntelligence from text.
     """
     try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
+        from groq import Groq
+        client = Groq(api_key=api_key)
 
         # Truncate text to avoid token limits while keeping key content
         truncated = text[:6000] if len(text) > 6000 else text
 
-        prompt = f"""You are an expert geopolitical energy intelligence analyst. 
-Analyze the following text and extract structured intelligence relevant to India's crude oil supply chain.
+        prompt = f"""
+You are an expert geopolitical and energy market analyst.
+Extract key risk intelligence from the following text and return the output STRICTLY as valid JSON without any markdown formatting.
 
-TEXT:
-\"\"\"
-{truncated}
-\"\"\"
+Text to analyze:
+"{truncated}"
 
-Extract the following into a JSON object. Be precise and factual. Only include entities actually mentioned in the text.
-
-Return ONLY a raw JSON object (no markdown fences, no commentary):
+Expected JSON format:
 {{
   "event_type": "One of: MILITARY_CONFLICT | SANCTIONS | OPEC_DECISION | INFRASTRUCTURE_FAILURE | WEATHER_EVENT | SHIPPING_DISRUPTION | PRICE_MOVEMENT | UNKNOWN",
   "summary": "2-3 sentence factual summary of what happened and its energy supply implications",
@@ -222,11 +218,13 @@ Return ONLY a raw JSON object (no markdown fences, no commentary):
   "uncertainties": ["2-3 key unknowns or factors that could change the assessment"]
 }}"""
 
-        response = client.models.generate_content(
-            model=_GEMINI_MODEL,
-            contents=prompt,
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama3-70b-8192",
+            temperature=0.0,
+            max_tokens=500
         )
-        raw = response.text.strip()
+        raw = response.choices[0].message.content.strip()
 
         # Strip any accidental markdown fences
         if raw.startswith("```"):
