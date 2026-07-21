@@ -470,7 +470,7 @@ export default function NationalEnergyTwin() {
 const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
   none: '',
   hormuz: 'https://www.seatrade-maritime.com/security/iran-declares-the-strait-of-hormuz-closed https://www.thehindu.com/news/international/iran-closes-strait-of-hormuz-us-israel-ceasefire-violations/article71126114.ece https://www.lemonde.fr/en/international/article/2026/06/20/iran-says-strait-of-hormuz-closed-again-after-israel-strikes-lebanon_6754700_4.html?srsltid=AfmBOoqjANxviE39KZhDGmihsy0o2V4Zv_yJwTh-jkRV7RlS-GEVQ-Dx',
-  redsea: 'https://www.bbc.com/news/world-middle-east-67705667',
+  redsea: 'https://economictimes.indiatimes.com/news/international/world-news/how-a-houthi-blockade-in-the-red-sea-tightens-irans-grip-on-global-energy-supplies/articleshow/132517509.cms?from=mdr https://www.thehindu.com/news/international/yemens-iranian-backed-houthis-say-they-will-block-saudi-shipping-at-red-sea-gateway/article71246685.ece',
   opec: 'https://www.reuters.com/business/energy/opec-agrees-voluntary-oil-output-cuts-2023',
   cyclone: 'https://www.aljazeera.com/news/2021/5/17/cyclone-tauktae-barrels-towards-indias-gujarat-state'
 }
