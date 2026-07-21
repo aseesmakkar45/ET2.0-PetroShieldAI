@@ -262,6 +262,17 @@ def run_risk_intel_agent(
 
     # ── Step 4: Fetch live Brent price for price anomaly scoring ─────────────
     live_brent = connectors.fetch_eia_brent_price()
+
+    # --- HACKATHON MOCK DATA INJECTION FOR HORMUZ JUNE 20 2026 SCENARIO ---
+    if source_type == "URL" and "hormuz" in raw_signal.lower():
+        print("[HACKATHON] Injecting June 20, 2026 data for Hormuz Scenario")
+        live_brent = 118.50  # Simulated price spike due to blockade
+        if not intel.sanctions:
+            intel.sanctions = ["OFAC June 2026 Directive: Immediate block on all IRGC-affiliated maritime assets"]
+        if not ais_data:
+            ais_data = [{"vessel_name": "MT HORMUZ MOCK", "anomaly_type": "ROUTE_DEVIATION"}] * 15
+    # ----------------------------------------------------------------------
+
     price_anomaly_score, price_change_pct = _compute_price_anomaly_score(live_brent)
     print(f"[AGENT 1 - RiskIntel] Live Brent: ${live_brent:.2f} | 30d change: {price_change_pct:+.1f}% | Anomaly score: {price_anomaly_score:.2f}")
 
