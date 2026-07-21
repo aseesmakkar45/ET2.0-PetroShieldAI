@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Lock, User, Eye, EyeOff, AlertTriangle, Zap } from 'lucide-react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://et2-0-petroshieldai.onrender.com'
 
 export default function LoginPage() {
   const router = useRouter()
