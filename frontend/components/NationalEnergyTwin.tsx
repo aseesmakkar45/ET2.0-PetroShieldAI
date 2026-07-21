@@ -1318,15 +1318,18 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                     { id: 'opec',   label: 'OPEC+ Emergency Supply Cut', sev: 'ELEVATED', prob: 90 },
                     { id: 'cyclone',label: 'Cyclone Tauktae — Gujarat', sev: 'MODERATE', prob: 68 },
                   ] as { id: EventId; label: string; sev: string; prob: number }[]).map(ev => (
-                    <button key={ev.id} onClick={() => fireEvent(ev.id)} style={{
+                    <button key={ev.id} onClick={() => fireEvent(ev.id)} disabled={loadingState} style={{
                       background: '#ffffff',
                       border: '1px solid #e2e8f0',
                       borderRadius: 6, padding: '9px 11px',
-                      cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
+                      cursor: loadingState ? 'wait' : 'pointer', textAlign: 'left', transition: 'all 0.2s',
                       boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                      opacity: loadingState ? 0.6 : 1,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 800, color: '#0f172a' }}>{ev.label}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: '#0f172a' }}>
+                          {loadingState && activeEvent !== ev.id ? ev.label : loadingState ? 'PROCESSING...' : ev.label}
+                        </span>
                         <span style={{ fontSize: 8, color: ev.sev === 'CRITICAL' ? '#dc2626' : '#d97706', fontWeight: 800, padding: '2px 5px', borderRadius: 4, background: ev.sev === 'CRITICAL' ? '#fee2e2' : '#fef3c7' }}>{ev.sev}</span>
                       </div>
                       <div style={{ marginTop: 5 }}>
