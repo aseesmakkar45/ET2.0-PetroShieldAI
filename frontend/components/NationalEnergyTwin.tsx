@@ -417,36 +417,49 @@ export default function NationalEnergyTwin() {
           return d + 1
         })
         setNarrativeIdx(i => {
-          const max = SCENARIOS[activeEvent]?.narrative.length ?? 1
+          let max = SCENARIOS[activeEvent]?.narrative.length ?? 1
+          if (backendAudit && backendAudit.decision_trace && backendAudit.decision_trace.length > 0) {
+            max = backendAudit.decision_trace.length
+          }
           return Math.min(i + 1, max - 1)
         })
       }, 1800)
     }
     return () => { if (simTimerRef.current) clearInterval(simTimerRef.current) }
-  }, [isPlaying, mode, activeEvent])
+  }, [isPlaying, mode, activeEvent, backendAudit])
 
   // ── Console log streamer — types out AI reasoning step-by-step ──
   useEffect(() => {
     if (mode !== 'SIMULATION' || activeEvent === 'none') return
-    const logs = SCENARIOS[activeEvent].consoleLogs
+    
+    let sourceLogs: string[] = []
+    if (backendAudit && backendAudit.decision_trace && backendAudit.decision_trace.length > 0) {
+      sourceLogs = backendAudit.decision_trace.map((step: any) => `[${step.agent_name}] ${step.reasoning} (${step.duration_ms}ms)`)
+      if (backendAudit.execution_log) {
+        sourceLogs = [...sourceLogs, ...backendAudit.execution_log]
+      }
+    } else {
+      sourceLogs = SCENARIOS[activeEvent].consoleLogs
+    }
+
     setConsoleLogs([])
     let idx = 0
     consoleTimerRef.current = setInterval(() => {
-      if (idx >= logs.length) {
+      if (idx >= sourceLogs.length) {
         if (consoleTimerRef.current) clearInterval(consoleTimerRef.current)
         return
       }
       const now = new Date().toISOString().slice(11, 19)
-      const msg = logs[idx]
-      const level: ConsoleLog['level'] = msg.startsWith('ALERT') || msg.startsWith('CRIT') ? 'CRIT'
-        : msg.startsWith('WARN') ? 'WARN'
-        : msg.startsWith('RECOMMENDATION') ? 'ACT'
+      const msg = sourceLogs[idx]
+      const level: ConsoleLog['level'] = (msg.includes('CRITICAL') || msg.includes('ALERT')) ? 'CRIT'
+        : msg.includes('WARN') ? 'WARN'
+        : msg.includes('RECOMMEND') ? 'ACT'
         : 'INFO'
       setConsoleLogs(prev => [...prev, { ts: now, level, msg }])
       idx++
     }, 850)
     return () => { if (consoleTimerRef.current) clearInterval(consoleTimerRef.current) }
-  }, [mode, activeEvent])
+  }, [mode, activeEvent, backendAudit])
 
   // ── Auto-scroll console to bottom ──
   useEffect(() => {
@@ -1441,7 +1454,9 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                     <motion.p key={narrativeIdx}
                       initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       style={{ fontSize: 10, color: '#0f172a', lineHeight: 1.55, margin: 0, fontWeight: 500 }}>
-                      {backendAudit?.gemini_audit?.narratives && backendAudit.gemini_audit.narratives.length > 0 ? backendAudit.gemini_audit.narratives[narrativeIdx % backendAudit.gemini_audit.narratives.length] : scenario.narrative[narrativeIdx]}
+                      {backendAudit && backendAudit.decision_trace && backendAudit.decision_trace.length > 0
+                        ? backendAudit.decision_trace[narrativeIdx % backendAudit.decision_trace.length]?.output_summary
+                        : scenario.narrative[narrativeIdx]}
                     </motion.p>
                   </AnimatePresence>
                 </div>
