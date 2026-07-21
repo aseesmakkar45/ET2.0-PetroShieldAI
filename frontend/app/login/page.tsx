@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shield, Lock, User, Eye, EyeOff, AlertTriangle, Zap } from 'lucide-react'
 
-const API_URL = 'https://et2-0-petroshieldai.onrender.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,11 +30,20 @@ export default function LoginPage() {
       if (res.ok) {
         router.push('/dashboard')
       } else {
-        setError('Invalid credentials. Please try again.')
+        if (res.status === 404) {
+          setError(`API Misconfigured (404 Not Found at ${API_URL})`)
+        } else if (res.status === 401) {
+          setError('Invalid credentials. Please try again.')
+        } else if (res.status === 500 || res.status === 502) {
+          setError(`Server Error (${res.status}). Please try again.`)
+        } else {
+          setError(`Error ${res.status}: Failed to authenticate.`)
+        }
         setLoading(false)
       }
-    } catch {
-      setError('Cannot connect to server. Please try again.')
+    } catch (err: any) {
+      console.error("Login fetch error:", err);
+      setError(`Network Error: Cannot connect to ${API_URL}`)
       setLoading(false)
     }
   }
