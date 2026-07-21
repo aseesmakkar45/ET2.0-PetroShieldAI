@@ -29,7 +29,10 @@ class QueueStdoutRedirector:
         self.original = original
 
     def write(self, message):
-        self.original.write(message)
+        try:
+            self.original.write(message)
+        except Exception:
+            self.original.write(message.encode('ascii', 'replace').decode('ascii'))
         stripped = message.strip()
         if stripped:
             lower_msg = stripped.lower()

@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
 
+from config import get_groq_api_key
 from agents.risk_intel import run_risk_intel_agent, RiskSignal
 from agents.scenario_modeller import run_scenario_modeller_agent, ScenarioResult
 from agents.procurement import run_procurement_orchestrator_agent, ProcurementPlan
@@ -104,7 +105,8 @@ def get_state_history() -> List[Dict[str, Any]]:
 def run_petroshield_pipeline(
     raw_signal: str, 
     source_type: str = "NEWS", 
-    ais_data: Optional[List[Dict]] = None
+    ais_data: Optional[List[Dict]] = None,
+    fast_fallback: bool = False
 ) -> PetroShieldState:
     """
     Executes the 5-agent state machine and captures the decision replay trace.
@@ -114,7 +116,7 @@ def run_petroshield_pipeline(
     
     # ─── Node 1: Risk Intelligence Agent ──────────────────────────────────────
     start_time = datetime.utcnow()
-    state.risk_signal = run_risk_intel_agent(raw_signal, source_type, ais_data)
+    state.risk_signal = run_risk_intel_agent(raw_signal, source_type, ais_data, fast_fallback=fast_fallback)
     duration = int((datetime.utcnow() - start_time).total_seconds() * 1000)
     
     risk_step = DecisionStep(
@@ -131,9 +133,10 @@ def run_petroshield_pipeline(
     state.decision_trace.append(risk_step.to_dict())
     state.execution_log.append(f"Node 1 finished in {duration}ms. Severity: {state.risk_signal.severity}.")
 
-    # ─── Node 1.5: Groq Risk Validation Report ─────────────────────────────
+    # ─── Node 1.5: Groq Risk Prediction Auditor & Multi-Agent Validator ──────
     t0 = datetime.now()
-    risk_audit_result = audit_risk_prediction_with_groq(state.risk_signal, raw_signal)
+    groq_key = get_groq_api_key()
+    risk_audit_result = audit_risk_prediction_with_groq(state.risk_signal, raw_signal) if (groq_key and not fast_fallback) else None
     t1 = datetime.now()
     duration_groq_risk = int((t1 - t0).total_seconds() * 1000)
     
@@ -251,7 +254,7 @@ def run_petroshield_pipeline(
 
     # ─── Node 6: Groq Executive Auditor & Dynamic Monitor ──────────────────
     t0 = datetime.now()
-    groq_data = audit_and_brief_with_groq(state)
+    groq_data = audit_and_brief_with_groq(state) if (groq_key and not fast_fallback) else None
     t1 = datetime.now()
     duration_groq = int((t1 - t0).total_seconds() * 1000)
     

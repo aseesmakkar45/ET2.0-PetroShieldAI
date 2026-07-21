@@ -12,6 +12,9 @@ from services.calculators import calculate_spr_days_of_cover, calculate_refinery
 router = APIRouter()
 DATA_DIR = Path(__file__).parent.parent / "data"
 
+_gdelt_news_cache = None
+_gdelt_news_last_fetched = None
+
 
 @router.get("/dashboard")
 async def get_dashboard():
@@ -20,7 +23,7 @@ async def get_dashboard():
     # If no state has run, run baseline pipeline
     if not state:
         from simulation.ais_generator import generate_vessels
-        state = run_petroshield_pipeline("CRITICAL conflict: Baseline crude supplies flow normally.", "POLICY", generate_vessels(count=15))
+        state = run_petroshield_pipeline("CRITICAL conflict: Baseline crude supplies flow normally.", "POLICY", generate_vessels(count=15), fast_fallback=True)
 
     risk_sig = state.risk_signal if state else None
     scn_res = state.scenario_result if state else None
@@ -98,75 +101,81 @@ async def get_dashboard():
     resilience_score = 100.0 - (risk_score * 0.4) - (refineries_at_risk * 5) + (spr_days * 0.1)
     resilience_score = max(10.0, min(100.0, resilience_score))
 
-    # 4. Integrate GDELT News Items into risks feed
-    gdelt_news = connectors.fetch_gdelt_news()
-    recent_risks = []
+    # 4. Integrate GDELT News Items into risks feed (cached for 15 minutes)
+    global _gdelt_news_cache, _gdelt_news_last_fetched
+    from datetime import timedelta
     
-    if risk_sig:
-        sig_dict = risk_sig.model_dump()
-        # Only set article_url if it's a real HTTP URL — never the raw signal text
-        raw_url = (
-            risk_sig.explainability.supporting_news[0]
-            if (risk_sig.explainability and risk_sig.explainability.supporting_news)
-            else None
-        )
-        sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
-        recent_risks.append(sig_dict)
-
-    # ── Import agent here to avoid circular import at module level ──
-    from agents.risk_intel import run_risk_intel_agent
-
-    for item in gdelt_news[:4]:
-        title = item.get("title") or ""
-        url   = item.get("url")   or ""
-        source = item.get("source") or "GDELT"
-
-        # Validate article URL — must start with http(s), otherwise drop it
-        article_url = url if url.startswith("http") else None
-
-        print(f"\n{'='*70}")
-        print(f"[AGENT 1 - RiskIntel] [NEW] NEW ARTICLE FROM [{source}]")
-        print(f"[AGENT 1 - RiskIntel]   Title   : {title}")
-        print(f"[AGENT 1 - RiskIntel]   URL     : {article_url or '(no direct link available)'}")
-        print(f"{'='*70}")
-
-        # ── Run the full agent pipeline on this article ──────────────────
-        # This fires all Graph-RAG, keyword extraction, and Bayesian logs
-        try:
-            agent_result = run_risk_intel_agent(
-                raw_signal=title,
-                source_type="GDELT_NEWS"
+    now = datetime.now()
+    if _gdelt_news_cache is None or _gdelt_news_last_fetched is None or (now - _gdelt_news_last_fetched) > timedelta(minutes=15):
+        gdelt_news = connectors.fetch_gdelt_news()
+        recent_risks = []
+        
+        if risk_sig:
+            sig_dict = risk_sig.model_dump()
+            raw_url = (
+                risk_sig.explainability.supporting_news[0]
+                if (risk_sig.explainability and risk_sig.explainability.supporting_news)
+                else None
             )
-            disruption_prob   = agent_result.disruption_probability
-            affected_chokes   = agent_result.affected_chokepoints or ["Strait of Hormuz"]
-            affected_countries= agent_result.affected_countries   or ["Unknown"]
-            estimated_impact  = agent_result.estimated_supply_impact_mbpd
-            event_type        = agent_result.event_type
-            severity          = agent_result.severity
-            print(f"[AGENT 1 - RiskIntel] [OK] Article processed: severity={severity}, prob={disruption_prob:.1f}%")
-        except Exception as exc:
-            print(f"[AGENT 1 - RiskIntel] [ERR] Agent error on article: {exc}")
-            disruption_prob   = 25.0
-            affected_chokes   = ["Strait of Hormuz"]
-            affected_countries= ["Unknown"]
-            estimated_impact  = 0.2
-            event_type        = "GEOPOLITICAL_NEWS"
-            severity          = "MONITOR"
+            sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
+            recent_risks.append(sig_dict)
 
-        recent_risks.append({
-            "signal_id": f"gdelt_{int(datetime.now().timestamp())}_{title[:8].replace(' ', '_')}",
-            "source_type": "GDELT_NEWS",
-            "timestamp": item.get("timestamp") or datetime.now().isoformat(),
-            "event_type": event_type,
-            "event_summary": f"[{source}] {title}",
-            "disruption_probability": disruption_prob,
-            "severity": severity,
-            "affected_chokepoints": affected_chokes,
-            "affected_countries": affected_countries,
-            "estimated_supply_impact_mbpd": estimated_impact,
-            "geospatial_evidence": {"vessel_anomalies": []},
-            "article_url": article_url
-        })
+        from agents.risk_intel import run_risk_intel_agent
+
+        for item in gdelt_news[:4]:
+            title = item.get("title") or ""
+            url   = item.get("url")   or ""
+            source = item.get("source") or "GDELT"
+            article_url = url if url.startswith("http") else None
+
+            try:
+                agent_result = run_risk_intel_agent(
+                    raw_signal=title,
+                    source_type="GDELT_NEWS",
+                    fast_fallback=True
+                )
+                disruption_prob   = agent_result.disruption_probability
+                affected_chokes   = agent_result.affected_chokepoints or ["Strait of Hormuz"]
+                affected_countries= agent_result.affected_countries   or ["Unknown"]
+                estimated_impact  = agent_result.estimated_supply_impact_mbpd
+                event_type        = agent_result.event_type
+                severity          = agent_result.severity
+            except Exception as exc:
+                disruption_prob   = 25.0
+                affected_chokes   = ["Strait of Hormuz"]
+                affected_countries= ["Unknown"]
+                estimated_impact  = 0.2
+                event_type        = "GEOPOLITICAL_NEWS"
+                severity          = "MONITOR"
+
+            recent_risks.append({
+                "signal_id": f"gdelt_{int(datetime.now().timestamp())}_{title[:8].replace(' ', '_')}",
+                "source_type": "GDELT_NEWS",
+                "timestamp": item.get("timestamp") or datetime.now().isoformat(),
+                "event_type": event_type,
+                "event_summary": f"[{source}] {title}",
+                "disruption_probability": disruption_prob,
+                "severity": severity,
+                "affected_chokepoints": affected_chokes,
+                "affected_countries": affected_countries,
+                "estimated_supply_impact_mbpd": estimated_impact,
+                "geospatial_evidence": {"vessel_anomalies": []},
+                "article_url": article_url
+            })
+        _gdelt_news_cache = recent_risks
+        _gdelt_news_last_fetched = now
+    else:
+        recent_risks = list(_gdelt_news_cache)
+        if risk_sig:
+            sig_dict = risk_sig.model_dump()
+            raw_url = (
+                risk_sig.explainability.supporting_news[0]
+                if (risk_sig.explainability and risk_sig.explainability.supporting_news)
+                else None
+            )
+            sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
+            if not any(r.get("signal_id") == sig_dict.get("signal_id") for r in recent_risks):
+                recent_risks.insert(0, sig_dict)
 
     return {
         "energy_resilience_score": round(resilience_score, 1),

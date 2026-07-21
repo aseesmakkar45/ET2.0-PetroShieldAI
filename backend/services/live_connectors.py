@@ -41,31 +41,13 @@ _ENERGY_KEYWORDS = [
 
 # ── RSS / Atom feeds (free, no API key required) ──────────────────────────────
 _RSS_FEEDS = [
-    {"name": "Reuters Business",  "url": "https://feeds.reuters.com/reuters/businessNews",  "domain": "reuters.com"},
-    {"name": "Reuters World",     "url": "https://feeds.reuters.com/Reuters/worldNews",     "domain": "reuters.com"},
     {"name": "BBC World News",    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",     "domain": "bbc.co.uk"},
     {"name": "Al Jazeera",        "url": "https://www.aljazeera.com/xml/rss/all.xml",       "domain": "aljazeera.com"},
     {"name": "Guardian World",    "url": "https://www.theguardian.com/world/rss",           "domain": "theguardian.com"},
-    {"name": "AP News",           "url": "https://rsshub.app/apnews/topics/world-news",     "domain": "apnews.com"},
     {"name": "UN News Security",  "url": "https://news.un.org/feed/subscribe/en/news/topic/peace-and-security/feed/rss.xml", "domain": "news.un.org"},
-    {"name": "UN News Economy",   "url": "https://news.un.org/feed/subscribe/en/news/topic/economic-development/feed/rss.xml", "domain": "news.un.org"},
 ]
 
-# ── OFAC sanction programs and keywords relevant to energy/shipping ───────────
-_SANCTION_PROGRAMS = ['IRAN', 'RUSSIA', 'UKRAINE', 'SDGT', 'CAATSA', 'YEMEN', 'VENEZUELA', 'SYRIA']
-_SANCTION_ENERGY_KW = ['oil', 'petroleum', 'tanker', 'shipping', 'maritime', 'energy', 'vessel', 'lng', 'crude']
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _is_cache_fresh(cache_path: str, max_age_seconds: int) -> bool:
-    """Returns True if a cache file exists and is younger than max_age_seconds."""
-    if not os.path.exists(cache_path):
-        return False
-    return (datetime.now().timestamp() - os.path.getmtime(cache_path)) < max_age_seconds
-
-
-def _parse_rss_feed(feed_url: str, feed_name: str, domain: str, timeout: int = 10) -> List[Dict]:
+def _parse_rss_feed(feed_url: str, feed_name: str, domain: str, timeout: int = 3) -> List[Dict]:
     """
     Fetch and parse a single RSS/Atom feed.
     Filters to articles containing at least one energy/geopolitics keyword.

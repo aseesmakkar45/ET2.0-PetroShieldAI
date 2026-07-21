@@ -14,7 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts'
-import { getDashboard, getMapData, getMaritimeWeather, api, API_BASE_URL } from '@/services/api'
+import { getDashboard, getMapData, getMaritimeWeather, getProcurement, getSPR, api, API_BASE_URL } from '@/services/api'
 
 // Dynamically import Leaflet Map to avoid SSR errors
 const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
@@ -131,6 +131,20 @@ export default function CommandCenter({ view }: { view?: string }) {
   const { data: dashboard, isLoading: dashLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboard,
+    refetchInterval: 5000,
+  })
+
+  // 1b. Fetch procurement plan
+  const { data: procurementData } = useQuery({
+    queryKey: ['procurement'],
+    queryFn: () => getProcurement(),
+    refetchInterval: 5000,
+  })
+
+  // 1c. Fetch SPR advisory
+  const { data: sprData } = useQuery({
+    queryKey: ['spr'],
+    queryFn: () => getSPR(),
     refetchInterval: 5000,
   })
 
@@ -2358,7 +2372,7 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   // Detailed Procurement Optimizer Card
   function renderDetailedProcurementCard() {
-    const firstRiskId = dashboard?.top_risks?.[0]?.signal_id || "gdelt_default";
+    const planId = procurementData?.plan_id || "plan_default";
     return (
       <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2367,70 +2381,60 @@ export default function CommandCenter({ view }: { view?: string }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {dashboard?.top_risks?.[0] ? (
-            <>
-              <div style={{
-                padding: 12,
-                background: 'rgba(16, 185, 129, 0.04)',
-                borderRadius: 8,
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-emerald)' }}>Reroute Option: Russian Urals (Baltic Route)</span>
-                  <span className="badge risk-bg-low risk-low" style={{ fontSize: 9 }}>Rank 1</span>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
-                  Optimal linear optimization solution. Diverts heavy crude tanker pool from Baltic terminals to India West Coast (Sikka/Vadinar).
-                </p>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11, color: 'var(--color-text-primary)', marginTop: 6, padding: '6px 0', borderTop: '1px solid rgba(128,128,128,0.1)' }}>
-                  <div>Allocated Volume: <strong>0.3 mbpd</strong></div>
-                  <div>Freight Discount: <strong style={{ color: 'var(--color-emerald)' }}>-$2.00/bbl</strong></div>
-                  <div>Transit Duration: <strong>11 days</strong></div>
-                </div>
+          {procurementData?.recommendations && procurementData.recommendations.length > 0 ? (
+            procurementData.recommendations.map((rec: any, index: number) => {
+              const isRank1 = rec.rank === 1;
+              return (
+                <div key={index} style={{
+                  padding: 12,
+                  background: isRank1 ? 'rgba(16, 185, 129, 0.04)' : 'var(--color-bg-secondary)',
+                  borderRadius: 8,
+                  border: isRank1 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--color-border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: isRank1 ? 'var(--color-emerald)' : 'var(--color-text-primary)' }}>
+                      {rec.action}: {rec.to_supplier} ({rec.crude_grade})
+                    </span>
+                    <span className={`badge ${isRank1 ? 'risk-bg-low risk-low' : 'risk-bg-moderate risk-moderate'}`} style={{ fontSize: 9 }}>
+                      Rank {rec.rank}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                    {rec.tradeoff_summary}
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, fontSize: 11, color: 'var(--color-text-primary)', marginTop: 6, padding: '6px 0', borderTop: '1px solid rgba(128,128,128,0.1)' }}>
+                    <div>Allocated Volume: <strong>{rec.volume_mbpd.toFixed(2)} mbpd</strong></div>
+                    <div>Freight Cost: <strong style={{ color: isRank1 ? 'var(--color-emerald)' : 'inherit' }}>${rec.route.freight_cost_usd_bbl.toFixed(2)}/bbl</strong></div>
+                    <div>Transit Duration: <strong>{rec.transit_time_days} days</strong></div>
+                  </div>
 
-                {/* Action buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button 
-                    onClick={() => handleProcurementAction(firstRiskId, "APPROVE")}
-                    disabled={decisionActionStatus[firstRiskId] === "APPROVE"}
-                    className="btn-primary" 
-                    style={{ flex: 1, padding: '6px 12px', fontSize: 11, background: '#10b981', boxShadow: 'none' }}
-                  >
-                    {decisionActionStatus[firstRiskId] === "APPROVE" ? <Check size={12} style={{ margin: '0 auto' }} /> : "Approve Cargo rerouting"}
-                  </button>
-                  <button 
-                    onClick={() => handleProcurementAction(firstRiskId, "REJECT")}
-                    className="btn-ghost" 
-                    style={{ padding: '6px 12px', fontSize: 11 }}
-                  >
-                    Reject allocation
-                  </button>
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button 
+                      onClick={() => handleProcurementAction(planId, isRank1 ? "APPROVE" : "GENERATE_ALTERNATIVE")}
+                      disabled={decisionActionStatus[planId] === "APPROVE"}
+                      className="btn-primary" 
+                      style={{ flex: 1, padding: '6px 12px', fontSize: 11, background: isRank1 ? '#10b981' : '#3b82f6', boxShadow: 'none' }}
+                    >
+                      {decisionActionStatus[planId] === "APPROVE" ? <Check size={12} style={{ margin: '0 auto' }} /> : (isRank1 ? "Approve Cargo rerouting" : "Request Alternative")}
+                    </button>
+                    {isRank1 && (
+                      <button 
+                        onClick={() => handleProcurementAction(planId, "REJECT")}
+                        className="btn-ghost" 
+                        style={{ padding: '6px 12px', fontSize: 11 }}
+                      >
+                        Reject allocation
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              {/* Option 2 */}
-              <div style={{
-                padding: 12,
-                background: 'var(--color-bg-secondary)',
-                borderRadius: 8,
-                border: '1px solid var(--color-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)' }}>Reroute Option: Saudi KSA Direct (Yanbu Bypass)</span>
-                  <span className="badge risk-bg-moderate risk-moderate" style={{ fontSize: 8 }}>Rank 2</span>
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                  Reroutes East-West pipeline flow to bypass Bab-el-Mandeb. Volume: <strong>0.8 mbpd</strong>. Compatibility: 94%. Freight premium: +$1.20/bbl.
-                </p>
-              </div>
-            </>
+              );
+            })
           ) : (
             <div style={{ padding: '30px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
               All active procurement pipelines operating within baseline contracts.
@@ -2438,34 +2442,64 @@ export default function CommandCenter({ view }: { view?: string }) {
           )}
         </div>
       </div>
-    )
+    );
   }
 
   // Supplier Compliance / Metrics Card
   function renderSupplierComplianceCard() {
+    const rec = procurementData?.recommendations?.[0];
+    if (!rec) {
+      return (
+        <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>OPTIMIZATION CRITERIA WEIGHTS</span>
+          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            No active optimization criteria to display.
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>OPTIMIZATION CRITERIA WEIGHTS</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11, color: 'var(--color-text-primary)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>Grade Compatibility Match:</span>
-            <span style={{ color: 'var(--color-emerald)', fontWeight: 700 }}>98.2%</span>
+            <span style={{ color: 'var(--color-emerald)', fontWeight: 700 }}>{(rec.grade_compatibility_score * 100).toFixed(1)}%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>VLCC Tanker Pool Capacity:</span>
-            <span>14/15 Available</span>
+            <span>{rec.tanker_info.available_count} Available ({rec.tanker_info.vessel_type})</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
             <span>Sikka Port Congestion wait:</span>
-            <span style={{ color: '#ef4444' }}>1.4 Days</span>
+            <span style={{ color: rec.expected_port_wait_days > 3.0 ? '#ef4444' : 'inherit' }}>{rec.expected_port_wait_days.toFixed(1)} Days</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(128,128,128,0.1)', paddingBottom: 6 }}>
+            <span>Optimization Score:</span>
+            <span style={{ color: 'var(--color-blue-500)', fontWeight: 700 }}>{rec.optimization_score.toFixed(1)}/100</span>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // SPR Affection Card
   function renderSPRAffectionCard() {
+    const schedule = sprData?.recommended_drawdown_schedule?.[0];
+    const replenish = sprData?.replenishment_plan;
+    if (!schedule || !replenish) {
+      return (
+        <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Activity size={16} color="var(--color-amber)" />
+            <span className="section-title" style={{ fontSize: 11 }}>SPR Drawdown Optimization</span>
+          </div>
+          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            No active emergency reserve drawdowns active. Strategic coverage: <strong>64 Days Buffer</strong>.
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2473,50 +2507,55 @@ export default function CommandCenter({ view }: { view?: string }) {
           <span className="section-title" style={{ fontSize: 11 }}>SPR Drawdown Optimization</span>
         </div>
 
-        {dashboard?.top_risks?.[0] ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
-                <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>DRAWDOWN RATE</div>
-                <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-amber)', marginTop: 2 }}>1.15 mbpd</div>
-              </div>
-              <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
-                <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>REPLENISH BUDGET</div>
-                <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-blue-500)', marginTop: 2 }}>$3.26 Billion</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>DRAWDOWN RATE</div>
+              <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-amber)', marginTop: 2 }}>
+                {schedule.release_volume_mbpd.toFixed(2)} mbpd
               </div>
             </div>
-            
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5, background: 'rgba(217, 119, 6, 0.04)', padding: 10, borderRadius: 6, borderLeft: '3px solid var(--color-amber)' }}>
-              <strong>Cabinet Directive Release:</strong> Padur cavern and Mangaluru cavern release configured for 34 days cover buffer.
+            <div style={{ background: 'var(--color-bg-primary)', padding: 10, borderRadius: 6, border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 9, color: 'var(--color-text-secondary)' }}>REPLENISH BUDGET</div>
+              <div className="mono" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-blue-500)', marginTop: 2 }}>
+                ${replenish.estimated_cost_usd_bn.toFixed(2)} Billion
+              </div>
             </div>
           </div>
-        ) : (
-          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: '#475569' }}>
-            No active emergency reserve drawdowns active. Strategic coverage: <strong>64 Days Buffer</strong>.
+          
+          <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5, background: 'rgba(217, 119, 6, 0.04)', padding: 10, borderRadius: 6, borderLeft: '3px solid var(--color-amber)' }}>
+            <strong>Drawdown Strategy:</strong> <span style={{ textTransform: 'uppercase' }}>{sprData.drawdown_strategy}</span>. Recommended price ceiling: <strong>${replenish.recommended_buy_price_ceiling.toFixed(2)}/bbl</strong> via {replenish.replenishment_source}.
           </div>
-        )}
+        </div>
       </div>
     )
   }
 
   // Refinery Impact Summary Card
   function renderRefineryImpactSummaryCard() {
+    const curves = sprData?.refinery_demand_curves;
+    if (!curves || curves.length === 0) {
+      return (
+        <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>REFINERY RUN-RATE METRICS</span>
+          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            No active refinery metrics to display.
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>REFINERY RUN-RATE METRICS</span>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
-            <span style={{ color: 'var(--color-text-primary)' }}>Sikka (Reliance):</span>
-            <span>100% capacity (Normal)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
-            <span style={{ color: 'var(--color-text-primary)' }}>Kochi Refineries (BPCL):</span>
-            <span style={{ color: 'var(--color-risk-critical)' }}>85% run rate (Restricted)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--color-text-primary)' }}>Mangalore (MRPL):</span>
-            <span>98% capacity (Normal)</span>
-          </div>
+          {curves.map((curve: any, index: number) => (
+            <div key={index} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 6 }}>
+              <span style={{ color: 'var(--color-text-primary)' }}>{curve.refinery_name}:</span>
+              <span style={{ color: curve.shutdown_risk ? 'var(--color-risk-critical)' : 'inherit' }}>
+                {curve.shutdown_risk ? "Restricted / Shutdown Risk" : "100% capacity (Normal)"} ({curve.base_demand_mbpd} mbpd)
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -2524,43 +2563,39 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   // Caverns Status Card
   function renderCavernsStatusCard() {
+    const caverns = mapData?.spr_facilities;
+    if (!caverns || caverns.length === 0) {
+      return (
+        <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>ISPRL STORAGE CAVERN METRICS</span>
+          <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)' }}>
+            No cavern metrics available.
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="glass-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <span style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 600 }}>ISPRL STORAGE CAVERN METRICS</span>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 6 }}>
-          {/* Cavern 1 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
-              <span><strong>Padur Cavern</strong> (Karnataka)</span>
-              <span>72% Filled (10.8M barrels)</span>
-            </div>
-            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: '72%', height: '100%', background: 'linear-gradient(90deg, var(--color-amber), var(--color-orange))', borderRadius: 4 }} />
-            </div>
-          </div>
-
-          {/* Cavern 2 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
-              <span><strong>Mangaluru Cavern</strong> (Karnataka)</span>
-              <span>45% Filled (4.5M barrels)</span>
-            </div>
-            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: '45%', height: '100%', background: 'linear-gradient(90deg, var(--color-orange), var(--color-risk-critical))', borderRadius: 4 }} />
-            </div>
-          </div>
-
-          {/* Cavern 3 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
-              <span><strong>Visakhapatnam Cavern</strong> (Andhra Pradesh)</span>
-              <span>90% Filled (8.1M barrels)</span>
-            </div>
-            <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ width: '90%', height: '100%', background: 'linear-gradient(90deg, var(--color-risk-low), #059669)', borderRadius: 4 }} />
-            </div>
-          </div>
+          {caverns.map((cavern: any) => {
+            const fill = cavern.fill_pct || 0;
+            const barColor = fill > 80 ? 'linear-gradient(90deg, var(--color-risk-low), #059669)'
+                           : (fill > 60 ? 'linear-gradient(90deg, var(--color-amber), var(--color-orange))'
+                           : 'linear-gradient(90deg, var(--color-orange), var(--color-risk-critical))');
+            return (
+              <div key={cavern.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--color-text-primary)' }}>
+                  <span><strong>{cavern.name}</strong></span>
+                  <span>{fill}% Filled ({cavern.capacity_mb ? (cavern.capacity_mb * (fill/100)).toFixed(1) : ''}M barrels)</span>
+                </div>
+                <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ width: `${fill}%`, height: '100%', background: barColor, borderRadius: 4 }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     )

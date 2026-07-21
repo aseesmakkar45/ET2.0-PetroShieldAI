@@ -187,7 +187,8 @@ def _compute_estimated_supply_impact(
 def run_risk_intel_agent(
     raw_signal: str,
     source_type: str = "NEWS",
-    ais_data: Optional[List[Dict]] = None
+    ais_data: Optional[List[Dict]] = None,
+    fast_fallback: bool = False
 ) -> RiskSignal:
     """
     Run Agent 1: Analyzes raw signals (text or URL), extracts structured
@@ -199,7 +200,7 @@ def run_risk_intel_agent(
     REPLACED: Hardcoded supply impact → KG supplier capacity computation
     """
     G = get_graph()
-    api_key = get_groq_api_key() or ""
+    api_key = "" if fast_fallback else (get_groq_api_key() or "")
 
     print(f"[AGENT 1 - RiskIntel] Starting event understanding for signal: '{raw_signal[:120]}...'")
 
