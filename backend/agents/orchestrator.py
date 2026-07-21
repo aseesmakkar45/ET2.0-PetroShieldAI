@@ -296,12 +296,6 @@ _active_state: Optional[PetroShieldState] = None
 
 def get_active_state() -> Optional[PetroShieldState]:
     global _active_state
-    # If no state is set, initialize with a baseline run
-    if _active_state is None:
-        run_petroshield_pipeline(
-            "CRITICAL conflict, OPEC quota anxiety, and sanctions blockade: Iran blockades the Strait of Hormuz, shutting down 100% of crude oil tanker transits to Sikka. Brent price spikes 20%.",
-            source_type="POLICY"
-        )
     return _active_state
 
 
