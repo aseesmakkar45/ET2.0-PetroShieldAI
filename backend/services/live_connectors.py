@@ -498,14 +498,38 @@ class LiveDataConnectors:
     # EIA BRENT CRUDE PRICE
     # ─────────────────────────────────────────────────────────────────────────
 
-    def fetch_eia_brent_price(self) -> float:
+    def fetch_eia_brent_price(self, target_date: Optional[datetime] = None) -> float:
         """
         Fetch latest Brent crude spot price from EIA API v2.
         Falls back to local DCOILBRENTEU.csv if key missing or request fails.
-        EIA v2 endpoint: /v2/petroleum/pri/spt/data/ with series RBRTE.
-        Cached 6 hours.
+        If target_date is provided, fetches the exact historical price from CSV.
         """
         now = datetime.now()
+        
+        # Historical target date logic
+        if target_date:
+            try:
+                csv_path = os.path.join(os.path.dirname(__file__), "..", "data", "DCOILBRENTEU.csv")
+                if os.path.exists(csv_path):
+                    with open(csv_path, mode='r') as f:
+                        import csv
+                        reader = csv.reader(f)
+                        rows = list(reader)
+                        # Search backwards for the closest preceding date
+                        target_str = target_date.strftime("%Y-%m-%d")
+                        for row in reversed(rows):
+                            if row and len(row) >= 2:
+                                if row[0] <= target_str:
+                                    try:
+                                        price = float(row[1])
+                                        print(f"[EIA Historical] Brent price fetched for {target_str} (found {row[0]}): ${price:.2f}")
+                                        return price
+                                    except ValueError:
+                                        continue
+            except Exception as e:
+                print(f"[EIA Historical] Failed to load historical price: {e}")
+            return 82.49
+
         if self.eia_last_fetched and (now - self.eia_last_fetched) < timedelta(hours=6):
             return self.eia_cache.get("brent_price", 82.49)
 
@@ -543,6 +567,7 @@ class LiveDataConnectors:
             csv_path = os.path.join(os.path.dirname(__file__), "..", "data", "DCOILBRENTEU.csv")
             if os.path.exists(csv_path):
                 with open(csv_path, mode='r') as f:
+                    import csv
                     reader = csv.reader(f)
                     rows = list(reader)
                     for row in reversed(rows):

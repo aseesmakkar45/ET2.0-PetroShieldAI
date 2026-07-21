@@ -260,21 +260,25 @@ def run_risk_intel_agent(
     rag_result = query_graph_rag(raw_signal, G)
     print(f"[AGENT 1 - RiskIntel] Graph-RAG alignment complete. Found entities: {rag_result['kg_entities_used']}")
 
-    # ── Step 4: Fetch live Brent price for price anomaly scoring ─────────────
-    live_brent = connectors.fetch_eia_brent_price()
-
-    # --- HACKATHON MOCK DATA INJECTION FOR HORMUZ JUNE 20 2026 SCENARIO ---
+    # ── Step 4: Fetch historical or live Brent price ─────────────
+    # Check if this is a historical simulation scenario
+    target_date = None
     if source_type == "URL" and "hormuz" in raw_signal.lower():
-        print("[HACKATHON] Injecting June 20, 2026 data for Hormuz Scenario")
-        live_brent = 118.50  # Simulated price spike due to blockade
-        if not intel.sanctions:
-            intel.sanctions = ["OFAC June 2026 Directive: Immediate block on all IRGC-affiliated maritime assets"]
-        if not ais_data:
-            ais_data = [{"vessel_name": "MT HORMUZ MOCK", "anomaly_type": "ROUTE_DEVIATION"}] * 15
-    # ----------------------------------------------------------------------
+        import re
+        from datetime import datetime
+        # Extract date from URL like /2026/06/20/
+        date_match = re.search(r'/(\d{4})/(\d{2})/(\d{2})/', raw_signal)
+        if date_match:
+            try:
+                target_date = datetime(int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3)))
+                print(f"[SCENARIO] Detected historical scenario date: {target_date.date()}")
+            except ValueError:
+                pass
+
+    live_brent = connectors.fetch_eia_brent_price(target_date=target_date)
 
     price_anomaly_score, price_change_pct = _compute_price_anomaly_score(live_brent)
-    print(f"[AGENT 1 - RiskIntel] Live Brent: ${live_brent:.2f} | 30d change: {price_change_pct:+.1f}% | Anomaly score: {price_anomaly_score:.2f}")
+    print(f"[AGENT 1 - RiskIntel] Brent Price: ${live_brent:.2f} | 30d change: {price_change_pct:+.1f}% | Anomaly score: {price_anomaly_score:.2f}")
 
     # ── Step 5: Data-driven Bayesian Risk Scoring ─────────────────────────────
     # All feature values now derived from data, not keywords
