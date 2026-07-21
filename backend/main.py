@@ -221,41 +221,37 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[INIT] Failed to start AIS stream on boot: {e}")
     
-    # Pre-run and cache standard demo scenarios for instant display
-    try:
-        from agents.orchestrator import run_petroshield_pipeline
-        
-        # 1. Strait of Hormuz Blockade
-        run_petroshield_pipeline(
-            "CRITICAL conflict and sanctions blockade: Iran blockades the Strait of Hormuz. Brent price spikes 20% on OPEC quota anxiety.",
-            source_type="NEWS",
-            ais_data=[]
-        )
-        
-        # 2. Red Sea Shipping Crisis
-        run_petroshield_pipeline(
-            "CRITICAL shipping crisis: Houthi forces launch missile strikes in the Bab-el-Mandeb strait, forcing Suez route diversions.",
-            source_type="NEWS",
-            ais_data=[]
-        )
-        
-        # 3. OPEC Voluntary Cuts
-        run_petroshield_pipeline(
-            "POLICY change: OPEC+ announces emergency production cuts of 2.0 mbpd, causing global supply shortages.",
-            source_type="POLICY",
-            ais_data=[]
-        )
-        print("[INIT] Pre-cached the 3 hackathon demo scenarios successfully.")
-    except Exception as e:
-        print(f"[WARNING] Failed to pre-cache scenarios: {e}")
+    # Pre-run and cache standard demo scenarios in a background task (non-blocking)
+    # Running these synchronously at startup caused 502 on Render (Groq calls block startup)
+    async def _precache_scenarios():
+        await asyncio.sleep(5)  # Let server fully boot first
+        try:
+            from agents.orchestrator import run_petroshield_pipeline
+            loop = asyncio.get_running_loop()
+
+            await loop.run_in_executor(None, lambda: run_petroshield_pipeline(
+                "CRITICAL conflict and sanctions blockade: Iran blockades the Strait of Hormuz. Brent price spikes 20% on OPEC quota anxiety.",
+                source_type="NEWS", ais_data=[]
+            ))
+            await loop.run_in_executor(None, lambda: run_petroshield_pipeline(
+                "CRITICAL shipping crisis: Houthi forces launch missile strikes in the Bab-el-Mandeb strait, forcing Suez route diversions.",
+                source_type="NEWS", ais_data=[]
+            ))
+            await loop.run_in_executor(None, lambda: run_petroshield_pipeline(
+                "POLICY change: OPEC+ announces emergency production cuts of 2.0 mbpd, causing global supply shortages.",
+                source_type="POLICY", ais_data=[]
+            ))
+            print("[INIT] Pre-cached the 3 hackathon demo scenarios successfully.")
+        except Exception as e:
+            print(f"[WARNING] Failed to pre-cache scenarios: {e}")
+
+    asyncio.create_task(_precache_scenarios())
 
     # Start background broadcasters
     asyncio.create_task(risk_alert_broadcaster())
     asyncio.create_task(vessel_position_broadcaster())
 
     # ── Start the Autonomous Brain Loop ──────────────────────────────────────
-    # This is the core intelligence engine: continuously polls GDELT, scores
-    # each new article, and auto-triggers the full 5-agent cascade on threats.
     asyncio.create_task(autonomous_brain_loop())
     print("[INIT] Autonomous brain loop scheduled (first cycle in 2 minutes).")
 
