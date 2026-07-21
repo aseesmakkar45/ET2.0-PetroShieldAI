@@ -20,7 +20,7 @@ async def login(body: LoginRequest):
     Validates portal credentials against server-side env vars.
     Returns success on match. Never exposes credentials to client.
     """
-    if body.email == settings.PORTAL_EMAIL and body.password == settings.PORTAL_PASSWORD:
+    if body.email.strip().lower() == settings.PORTAL_EMAIL.strip().lower() and body.password.strip() == settings.PORTAL_PASSWORD.strip():
         return {"success": True, "email": body.email}
 
     raise HTTPException(status_code=401, detail="Invalid credentials")
