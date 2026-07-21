@@ -265,7 +265,6 @@ def run_risk_intel_agent(
     target_date = None
     if source_type == "URL":
         import re
-        from datetime import datetime
         # Extract date from URL like /2026/06/20/ or /2022/10/6/
         date_match = re.search(r'/(\d{4})/(\d{1,2})/(\d{1,2})/', raw_signal)
         if date_match:
