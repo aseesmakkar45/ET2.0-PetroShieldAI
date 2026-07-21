@@ -130,6 +130,30 @@ class GroqPromptingAgent:
             "uncertainties": ["LLM API rate limit fallback applied."]
         }
 
+    def generate_search_query_for_event(self, article_text: str) -> str:
+        """
+        Generates a 3-5 word search query summarizing the geopolitical event for GDELT scraping.
+        Returns 'NONE' if no major event is detected.
+        """
+        system_instruction = (
+            "You are an expert news aggregator. Your task is to extract a highly concise, 3-5 word search query "
+            "that captures the core geopolitical or energy-related event in the provided text. "
+            "Focus on entities, locations, and actions (e.g., 'Houthi drone attack red sea', 'OPEC production cut saudi'). "
+            "If the text does not describe a distinct event, respond exactly with 'NONE'. Do not include quotes."
+        )
+        prompt = f"Extract a search query from this text:\n\n{article_text[:2000]}"
+        response_text = self._call_groq(prompt, system_instruction)
+        
+        if not response_text:
+            return "NONE"
+            
+        cleaned = response_text.strip().strip("'\"").replace("\n", " ")
+        if cleaned.upper() == "NONE" or len(cleaned) > 100:
+            return "NONE"
+            
+        logger.info(f"[GROQ AGENT] Generated search query: '{cleaned}'")
+        return cleaned
+
     # ══════════════════════════════════════════════════════════════════════════
     # STAGE 2: MULTI-AGENT SYSTEM AUDITOR
     # ══════════════════════════════════════════════════════════════════════════

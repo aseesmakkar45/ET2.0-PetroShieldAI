@@ -428,12 +428,46 @@ def extract_event_intelligence(
     from config import get_groq_api_key
     resolved_key = api_key or get_groq_api_key() or ""
 
-    # Try Groq extraction first
+    # Multi-Source Event Verification (fetch supporting articles)
+    combined_context = source_text
+    try:
+        from agents.groq_prompt_agent import groq_prompting_agent
+        from services.live_connectors import connectors
+        
+        # 1. Ask LLM to generate a search query from the main text
+        search_query = groq_prompting_agent.generate_search_query_for_event(source_text)
+        
+        # 2. If a valid event query is generated, search GDELT for related URLs
+        if search_query != "NONE":
+            related_urls = connectors.search_gdelt_by_query(search_query, max_results=3)
+            
+            # 3. Download the text of the related articles
+            additional_texts = []
+            for i, url in enumerate(related_urls):
+                if url.strip() != raw_signal.strip(): # Don't fetch the exact same URL
+                    logger.info(f"[EventIntel] Fetching supporting article {i+1}: {url}")
+                    content = fetch_article_content(url)
+                    if content:
+                        additional_texts.append(f"--- Supporting Article {i+1} ---\n{content[:1500]}")
+            
+            # 4. Combine into a massive context block
+            if additional_texts:
+                combined_context = (
+                    f"--- PRIMARY SOURCE ---\n{source_text}\n\n" + 
+                    "\n\n".join(additional_texts)
+                )
+                logger.info(f"[EventIntel] Multi-source aggregation complete. Total context size: {len(combined_context)} chars.")
+            else:
+                logger.info("[EventIntel] No supporting articles found. Proceeding with single-source context.")
+    except Exception as e:
+        logger.warning(f"[EventIntel] Multi-source aggregation failed: {e}. Proceeding with single-source context.")
+
+    # Try Groq extraction first on the combined multi-source context
     if resolved_key:
-        result = _extract_with_groq(source_text, resolved_key)
+        result = _extract_with_groq(combined_context, resolved_key)
         if result is not None:
             return result
         logger.warning("[EventIntel] Groq extraction failed — falling back to keyword extraction.")
 
     # Fallback to enhanced keyword extraction
-    return _extract_with_keywords(source_text)
+    return _extract_with_keywords(combined_context)

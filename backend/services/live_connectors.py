@@ -276,6 +276,42 @@ class LiveDataConnectors:
 
         return articles
 
+    def search_gdelt_by_query(self, query: str, max_results: int = 3) -> List[str]:
+        """
+        Dynamically searches GDELT v2 for a specific query and returns a list of URLs.
+        Used for multi-source event verification.
+        """
+        urls = []
+        if not query or query.upper() == "NONE":
+            return urls
+            
+        try:
+            params = urllib.parse.urlencode({
+                "query": query,
+                "mode": "artlist",
+                "maxrecords": str(max_results * 2), # Request more to filter out bad URLs
+                "format": "json",
+                "timespan": "7d",
+                "sort": "datedesc"
+            })
+            url = f"https://api.gdeltproject.org/api/v2/doc/doc?{params}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'PetroShieldAI/2.0'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+
+            for art in data.get("articles", []):
+                link = (art.get("url") or "").strip()
+                if link and link.startswith("http") and link not in urls:
+                    urls.append(link)
+                if len(urls) >= max_results:
+                    break
+
+            print(f"[GDELT Search] Found {len(urls)} URLs for query: '{query}'")
+        except Exception as e:
+            print(f"[GDELT Search] Error for query '{query}': {e}")
+
+        return urls
+
     def _fetch_newsdata_io(self) -> List[Dict]:
         """
         News from NewsData.io API.
