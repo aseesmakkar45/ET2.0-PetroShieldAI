@@ -263,11 +263,11 @@ def run_risk_intel_agent(
     # ── Step 4: Fetch historical or live Brent price ─────────────
     # Check if this is a historical simulation scenario
     target_date = None
-    if source_type == "URL" and "hormuz" in raw_signal.lower():
+    if source_type == "URL":
         import re
         from datetime import datetime
-        # Extract date from URL like /2026/06/20/
-        date_match = re.search(r'/(\d{4})/(\d{2})/(\d{2})/', raw_signal)
+        # Extract date from URL like /2026/06/20/ or /2022/10/6/
+        date_match = re.search(r'/(\d{4})/(\d{1,2})/(\d{1,2})/', raw_signal)
         if date_match:
             try:
                 target_date = datetime(int(date_match.group(1)), int(date_match.group(2)), int(date_match.group(3)))
