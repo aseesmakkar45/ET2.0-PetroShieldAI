@@ -14,7 +14,7 @@ from config import settings, get_groq_api_key
 from services.event_intel import fetch_article_content
 
 logger = logging.getLogger("uvicorn.error")
-_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+_DEFAULT_MODEL = "llama-3.1-8b-instant"
 
 
 class GroqPromptingAgent:
