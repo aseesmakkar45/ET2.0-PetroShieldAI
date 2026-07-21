@@ -4,7 +4,7 @@ import type {
   SPRAdvisory, KnowledgeGraphData, MapData, PriceHistory, NewsItem
 } from '@/types'
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
