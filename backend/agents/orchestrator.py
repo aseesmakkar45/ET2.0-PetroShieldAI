@@ -277,9 +277,9 @@ def run_petroshield_pipeline(
             confidence=0.98
         )
         state.decision_trace.append(audit_step.to_dict())
-        state.execution_log.append(f"Node 6 (Gemini) finished in {duration_gemini}ms. State machine completed.")
+        state.execution_log.append(f"Node 6 (Groq) finished in {duration_groq}ms. State machine completed.")
     else:
-        state.execution_log.append("Node 6 (Gemini) skipped or failed. Using fallback template briefing. State machine completed.")
+        state.execution_log.append("Node 6 (Groq) skipped or failed. Using fallback template briefing. State machine completed.")
 
     # Save to session history memory
     _state_checkpointer[state.risk_signal.signal_id] = state

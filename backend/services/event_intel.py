@@ -412,17 +412,25 @@ def extract_event_intelligence(
     Returns:
         EventIntelligence: Structured intelligence ready for downstream agents.
     """
-    # Auto-detect if input is a URL
+    # Auto-detect if input is a URL or multiple URLs
     source_text = raw_signal
-    if raw_signal.strip().startswith("http://") or raw_signal.strip().startswith("https://"):
-        logger.info(f"[EventIntel] URL detected — fetching article content from: {raw_signal.strip()}")
-        article_content = fetch_article_content(raw_signal.strip())
-        if article_content:
-            source_text = article_content
-            logger.info(f"[EventIntel] Article extracted successfully ({len(source_text)} chars). Proceeding to intelligence extraction.")
-        else:
-            logger.warning("[EventIntel] Article fetch failed — using URL string as fallback text.")
-            source_text = raw_signal  # Use URL as text hint
+    if "http://" in raw_signal or "https://" in raw_signal:
+        urls = re.findall(r'https?://[^\s,]+', raw_signal)
+        if urls:
+            logger.info(f"[EventIntel] {len(urls)} URL(s) detected — fetching article contents")
+            all_content = []
+            for i, url in enumerate(urls):
+                logger.info(f"[EventIntel] Fetching article {i+1}: {url}")
+                content = fetch_article_content(url)
+                if content:
+                    all_content.append(f"--- Article {i+1} ({url}) ---\n{content}\n")
+            
+            if all_content:
+                source_text = "\n".join(all_content)
+                logger.info(f"[EventIntel] Articles extracted successfully ({len(source_text)} chars).")
+            else:
+                logger.warning("[EventIntel] Article fetch failed — using raw URL text as fallback.")
+                source_text = raw_signal
 
     # Resolve API Key dynamically from rotation pool if not provided
     from config import get_groq_api_key

@@ -456,7 +456,7 @@ export default function NationalEnergyTwin() {
 // ── REAL NEWS ARTICLE URLS LINKED TO SCENARIO BUTTONS FOR LIVE SCRAPING & REAL-TIME NLP SIMULATION ──
 const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
   none: '',
-  hormuz: 'https://www.reuters.com/world/middle-east/iran-tensions-strait-of-hormuz-shipping-risk-2024',
+  hormuz: 'https://www.seatrade-maritime.com/security/iran-declares-the-strait-of-hormuz-closed https://www.thehindu.com/news/international/iran-closes-strait-of-hormuz-us-israel-ceasefire-violations/article71126114.ece https://www.lemonde.fr/en/international/article/2026/06/20/iran-says-strait-of-hormuz-closed-again-after-israel-strikes-lebanon_6754700_4.html?srsltid=AfmBOoqjANxviE39KZhDGmihsy0o2V4Zv_yJwTh-jkRV7RlS-GEVQ-Dx',
   redsea: 'https://www.bbc.com/news/world-middle-east-67705667',
   opec: 'https://www.reuters.com/business/energy/opec-agrees-voluntary-oil-output-cuts-2023',
   cyclone: 'https://www.aljazeera.com/news/2021/5/17/cyclone-tauktae-barrels-towards-indias-gujarat-state'
