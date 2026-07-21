@@ -609,7 +609,7 @@ export default function CommandCenter({ view }: { view?: string }) {
         </div>
 
         {/* Global Map element */}
-        <div style={{ flex: 1, border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden', background: '#060d1a', minHeight: 140 }}>
+        <div style={{ flex: 1, position: 'relative', border: '1px solid var(--color-border)', borderRadius: 6, overflow: 'hidden', background: '#060d1a', minHeight: 140 }}>
           {mapLoading ? (
             <div className="skeleton" style={{ height: '100%' }} />
           ) : (

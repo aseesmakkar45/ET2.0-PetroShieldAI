@@ -77,7 +77,7 @@ export default function GlobalMap({ mapData, layers, weatherData }: Props) {
   const L_WEATHER     = layers?.weather     ?? false
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#f8fafc' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#f8fafc' }}>
       <MapContainer
         key={mapKey}
         center={[20.5937, 78.9629]} // Centered on India
