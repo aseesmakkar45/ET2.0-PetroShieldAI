@@ -60,6 +60,7 @@
 - [Difficulties Faced](#-difficulties-faced)
 - [Known Limitations](#-known-limitations)
 - [Future Roadmap](#-future-roadmap)
+- [Resources & Links](#-resources--links)
 
 ---
 
