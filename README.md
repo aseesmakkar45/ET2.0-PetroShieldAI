@@ -1,8 +1,7 @@
 <div align="center">
 
-<img src="./assets/logo.png" alt="PetroShield AI Banner" width="100%"/>
+<img src="./assets/logo.png" alt="PetroShield AI Logo" width="300px"/>
 
-# 🛡️ PetroShield AI
 
 ### The AI Bridge to Energy Supply Chain Resilience
 
@@ -27,14 +26,6 @@
 
 **🌍 Autonomous Monitoring • 📊 Live Digital Twin • 🧮 SciPy Optimization • 🚢 Geospatial Intelligence • ⚡ Real-Time WebSockets**
 
-<br>
-
-### 🔗 Important Project Links
-* 📑 **[Pitch Deck / Presentation](https://drive.google.com/file/d/1pgeYuD8W7hx4FKIulKhXwD_-3bovd92W/view?usp=sharing)**
-* 📝 **[Technical Writeup](https://drive.google.com/file/d/1OxD5IziVUxfVmcgBTvilMpApJOF1hjh4/view?usp=sharing)**
-* 🎥 **[Live Demo Video](https://drive.google.com/file/d/1VgRPo3fFrSpJexAcp-uLf5GrSYEksclU/view?usp=sharing)**
-
-<br>
 
 [Features](#-core-features) •
 [Architecture](#-system-architecture) •
@@ -110,8 +101,7 @@ A complete walkthrough of PetroShield AI demonstrating:
 - Geospatial mapping of global chokepoints and real-time weather
 - SciPy-powered Procurement Orchestration
 
-▶️ **Watch the Demo**
-*(Demo link placeholder - add your drive or youtube link here)*
+▶️ **[Watch the Live Demo Video](https://drive.google.com/file/d/1VgRPo3fFrSpJexAcp-uLf5GrSYEksclU/view?usp=sharing)**
 
 ---
 
@@ -434,6 +424,13 @@ Navigate to `http://localhost:3000` to view the National Energy Command Center.
 - **Predictive Weather Routing:** Directly connect the Open-Meteo cyclone data into the Procurement Agent's SciPy optimizer to automatically reject or penalize reroutes passing through severe storms.
 - **Multi-Modal Document Parsing:** Allow users to upload PDF shipping manifests, bills of lading, or insurance documents for the LLM to extract volumetric data automatically.
 - **GraphRAG Expansion:** Implement a full graph-database backend (Neo4j) to map the cascading effects of secondary supply chain failures (e.g., if a refinery stops, which specific power plants go offline?).
+
+---
+
+# 📚 Resources & Links
+
+* 📑 **[Pitch Deck / Presentation](https://drive.google.com/file/d/1pgeYuD8W7hx4FKIulKhXwD_-3bovd92W/view?usp=sharing)**
+* 📝 **[Technical Writeup](https://drive.google.com/file/d/1OxD5IziVUxfVmcgBTvilMpApJOF1hjh4/view?usp=sharing)**
 
 ---
 <div align="center">
