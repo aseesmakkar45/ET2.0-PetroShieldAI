@@ -27,6 +27,15 @@
 
 **🌍 Autonomous Monitoring • 📊 Live Digital Twin • 🧮 SciPy Optimization • 🚢 Geospatial Intelligence • ⚡ Real-Time WebSockets**
 
+<br>
+
+### 🔗 Important Project Links
+* 📑 **[Pitch Deck / Presentation](https://drive.google.com/file/d/1pgeYuD8W7hx4FKIulKhXwD_-3bovd92W/view?usp=sharing)**
+* 📝 **[Technical Writeup](https://drive.google.com/file/d/1OxD5IziVUxfVmcgBTvilMpApJOF1hjh4/view?usp=sharing)**
+* 🎥 **[Live Demo Video](https://drive.google.com/file/d/1VgRPo3fFrSpJexAcp-uLf5GrSYEksclU/view?usp=sharing)**
+
+<br>
+
 [Features](#-core-features) •
 [Architecture](#-system-architecture) •
 [Lifecycle](#-complete-threat-lifecycle) •
