@@ -70,9 +70,9 @@ class PetroShieldState:
         self.decision_trace: List[Dict[str, Any]] = []
         self.execution_log: List[str] = []
         
-        # Gemini Auditor & Dynamic narrative data
-        self.gemini_audit: Optional[Dict[str, Any]] = None
-        self.gemini_risk_validation: Optional[Dict[str, Any]] = None
+        # Groq Auditor & Dynamic narrative data
+        self.groq_audit: Optional[Dict[str, Any]] = None
+        self.groq_risk_validation: Optional[Dict[str, Any]] = None
         
         # Cache memory
         self.timestamp: str = datetime.utcnow().isoformat()

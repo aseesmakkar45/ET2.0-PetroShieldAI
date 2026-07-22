@@ -18,12 +18,19 @@ _gdelt_news_last_fetched = None
 
 @router.get("/dashboard")
 async def get_dashboard():
+    from fastapi.concurrency import run_in_threadpool
     state = get_active_state()
     
-    # If no state has run, run baseline pipeline
+    # If no state has run yet, run baseline pipeline in thread pool (non-blocking)
     if not state:
         from simulation.ais_generator import generate_vessels
-        state = run_petroshield_pipeline("CRITICAL conflict: Baseline crude supplies flow normally.", "POLICY", generate_vessels(count=15), fast_fallback=True)
+        state = await run_in_threadpool(
+            run_petroshield_pipeline,
+            "Baseline crude supplies flow normally.",
+            "POLICY",
+            generate_vessels(count=15),
+            True  # fast_fallback=True
+        )
 
     risk_sig = state.risk_signal if state else None
     scn_res = state.scenario_result if state else None
@@ -101,33 +108,74 @@ async def get_dashboard():
     resilience_score = 100.0 - (risk_score * 0.4) - (refineries_at_risk * 5) + (spr_days * 0.1)
     resilience_score = max(10.0, min(100.0, resilience_score))
 
-    # 4. Integrate GDELT News Items into risks feed (cached for 15 minutes)
+    # 4. Serve GDELT news from cache — never block the response waiting for GDELT
+    # The cache is refreshed asynchronously in the background every 15 minutes
     global _gdelt_news_cache, _gdelt_news_last_fetched
     from datetime import timedelta
     
     now = datetime.now()
-    if _gdelt_news_cache is None or _gdelt_news_last_fetched is None or (now - _gdelt_news_last_fetched) > timedelta(minutes=15):
-        gdelt_news = connectors.fetch_gdelt_news()
-        recent_risks = []
-        
-        if risk_sig:
-            sig_dict = risk_sig.model_dump()
-            raw_url = (
-                risk_sig.explainability.supporting_news[0]
-                if (risk_sig.explainability and risk_sig.explainability.supporting_news)
-                else None
-            )
-            sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
-            recent_risks.append(sig_dict)
+    recent_risks = []
 
+    if _gdelt_news_cache is not None:
+        # Return cached data immediately
+        recent_risks = list(_gdelt_news_cache)
+    
+    # Always inject the active risk signal at top
+    if risk_sig:
+        sig_dict = risk_sig.model_dump()
+        raw_url = (
+            risk_sig.explainability.supporting_news[0]
+            if (risk_sig.explainability and risk_sig.explainability.supporting_news)
+            else None
+        )
+        sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
+        if not any(r.get("signal_id") == sig_dict.get("signal_id") for r in recent_risks):
+            recent_risks.insert(0, sig_dict)
+
+    # Trigger background cache refresh if stale (non-blocking)
+    cache_stale = (_gdelt_news_cache is None or _gdelt_news_last_fetched is None 
+                   or (now - _gdelt_news_last_fetched) > timedelta(minutes=15))
+    if cache_stale:
+        import asyncio
+        asyncio.create_task(_refresh_gdelt_cache(risk_sig))
+
+    return {
+        "energy_resilience_score": round(resilience_score, 1),
+        "overall_risk_score": risk_score,
+        "risk_level": risk_level,
+        "brent_price_usd": round(current_brent, 2),
+        "active_imports_mbd": 4.5,
+        "active_vessels": 48,
+        "active_alerts": 1 if risk_score > 15 else 0,
+        "spr_days_cover": round(spr_days, 1),
+        "kpi_cards": kpis,
+        "top_risks": recent_risks,
+        "latest_recommendations": [r.tradeoff_summary for r in proc_plan.recommendations] if proc_plan else [
+            "Maintain baseline shipping charters.",
+            "Monitor Hormuz and Red Sea corridors.",
+            "Verify Cochin port offloading throughput."
+        ],
+        "executive_briefing": exec_brief or "All energy import corridors are operating normally. No active disruptions detected.",
+        "timestamp": state.timestamp
+    }
+
+
+async def _refresh_gdelt_cache(risk_sig):
+    """Background task: fetch GDELT news and score each article with the Risk Intel agent.
+    Runs in a thread pool so it never blocks the event loop."""
+    global _gdelt_news_cache, _gdelt_news_last_fetched
+    from fastapi.concurrency import run_in_threadpool
+
+    def _do_fetch():
+        gdelt_news = connectors.fetch_gdelt_news()
         from agents.risk_intel import run_risk_intel_agent
+        recent_risks = []
 
         for item in gdelt_news[:4]:
             title = item.get("title") or ""
             url   = item.get("url")   or ""
             source = item.get("source") or "GDELT"
             article_url = url if url.startswith("http") else None
-
             try:
                 agent_result = run_risk_intel_agent(
                     raw_signal=title,
@@ -140,7 +188,7 @@ async def get_dashboard():
                 estimated_impact  = agent_result.estimated_supply_impact_mbpd
                 event_type        = agent_result.event_type
                 severity          = agent_result.severity
-            except Exception as exc:
+            except Exception:
                 disruption_prob   = 25.0
                 affected_chokes   = ["Strait of Hormuz"]
                 affected_countries= ["Unknown"]
@@ -162,40 +210,14 @@ async def get_dashboard():
                 "geospatial_evidence": {"vessel_anomalies": []},
                 "article_url": article_url
             })
-        _gdelt_news_cache = recent_risks
-        _gdelt_news_last_fetched = now
-    else:
-        recent_risks = list(_gdelt_news_cache)
-        if risk_sig:
-            sig_dict = risk_sig.model_dump()
-            raw_url = (
-                risk_sig.explainability.supporting_news[0]
-                if (risk_sig.explainability and risk_sig.explainability.supporting_news)
-                else None
-            )
-            sig_dict["article_url"] = raw_url if (raw_url and raw_url.startswith("http")) else None
-            if not any(r.get("signal_id") == sig_dict.get("signal_id") for r in recent_risks):
-                recent_risks.insert(0, sig_dict)
+        return recent_risks
 
-    return {
-        "energy_resilience_score": round(resilience_score, 1),
-        "overall_risk_score": risk_score,
-        "risk_level": risk_level,
-        "brent_price_usd": round(current_brent, 2),
-        "active_imports_mbd": 4.5,
-        "active_vessels": 48,
-        "active_alerts": 1 if risk_score > 15 else 0,
-        "spr_days_cover": round(spr_days, 1),
-        "kpi_cards": kpis,
-        "top_risks": recent_risks,
-        "latest_recommendations": [r.tradeoff_summary for r in proc_plan.recommendations] if proc_plan else [
-            "Maintain baseline shipping charters.",
-            "Monitor Hormuz and Red Sea corridors.",
-            "Verify Cochin port offloading throughput."
-        ],
-        "executive_briefing": exec_brief or "All energy import corridors are operating normally. No active disruptions detected.",
-        "timestamp": state.timestamp
-    }
+    try:
+        result = await run_in_threadpool(_do_fetch)
+        _gdelt_news_cache = result
+        _gdelt_news_last_fetched = datetime.now()
+    except Exception as e:
+        print(f"[DASHBOARD] Background GDELT refresh failed: {e}")
 
 
 # Store active API key in memory (simplifies demo configuration without sqlite table changes)

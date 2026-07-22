@@ -58,6 +58,7 @@ class SimulatedScenario(Base):
             "spr_runway_days": self.spr_runway_days,
             "audit_verdict": self.audit_verdict,
             "executive_narrative": self.executive_narrative,
+            "report_json": self.report_json,
             "pdf_filename": self.pdf_filename
         }
 

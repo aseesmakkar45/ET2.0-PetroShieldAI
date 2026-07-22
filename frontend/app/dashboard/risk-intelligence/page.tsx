@@ -10,7 +10,8 @@ export default function RiskIntelligencePage() {
   const { data: dashboard } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboard,
-    refetchInterval: 5000,
+    refetchInterval: 30000,
+    staleTime: 25000,
   })
 
   const riskScore = dashboard?.overall_risk_score ?? 21.5

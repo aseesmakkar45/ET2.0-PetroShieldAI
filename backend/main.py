@@ -77,15 +77,15 @@ _processed_article_hashes: set = set()
 # Severity levels that trigger full pipeline (WARNING and above)
 _PIPELINE_TRIGGER_SEVERITIES = {"WARNING", "ELEVATED", "CRITICAL"}
 
-# Poll interval in seconds (45 minutes)
-_NEWS_POLL_INTERVAL_SEC = 45 * 60
+# Poll interval in seconds (90 minutes)
+_NEWS_POLL_INTERVAL_SEC = 90 * 60
 
 
 async def autonomous_brain_loop():
     """
     The PetroShield autonomous intelligence loop.
 
-    Every 45 minutes:
+    Every 90 minutes:
       1. Fetches fresh geopolitical headlines from GDELT
       2. Scores each NEW article through the Risk Intelligence Agent
       3. If severity >= WARNING → fires the full 5-agent cascade

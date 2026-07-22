@@ -111,140 +111,6 @@ const LABEL_ZOOM: Record<ZoomLevel, string[]> = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCENARIO DATA
-// ─────────────────────────────────────────────────────────────────────────────
-const SCENARIOS: Record<EventId, { title: string; severity: string; narrative: string[]; cascadeSteps: string[]; consoleLogs: string[] }> = {
-  none: { title: '', severity: '', narrative: [], cascadeSteps: [], consoleLogs: [] },
-  hormuz: {
-    title: 'Strait of Hormuz Closure',
-    severity: 'CRITICAL',
-    narrative: [
-      'BREAKING — Iran Revolutionary Guard Corps deployed naval assets blocking the Strait of Hormuz. All crude tanker transits suspended effective 06:00 UTC.',
-      'Four tankers carrying Arab Light and Basrah grades are stationary inside the Gulf. Estimated 2.4 mbpd of India-bound crude interrupted.',
-      'AI Analysis: Blocking Hormuz impacts ~85% of India\'s Gulf crude imports. Without SPR activation, Indian refineries face fuel shortages in 8–12 days.',
-      'Recommended: Immediate Padur SPR release (0.9 mbpd buffer), Russian Urals surge (+0.7 mbpd), Cape of Good Hope reroutes for eligible tankers.',
-    ],
-    cascadeSteps: [
-      'Day 0 — Hormuz blocked. Gulf tankers frozen.',
-      'Day 2 — Indian port inventories declining.',
-      'Day 5 — Refinery run rates fall to 80%.',
-      'Day 8 — Fuel retail price +18% projection.',
-      'Day 12 — Grid stress index reaches CRITICAL.',
-      'Day 14 — SPR provides 14-day buffer if released now.',
-      'Day 22 — Worst case: 35% demand deficit without mitigation.',
-    ],
-    consoleLogs: [
-      'Initializing Hormuz Disruption Model v4.2...',
-      'Ingesting AIS transponder feeds: 847 vessels in Persian Gulf region',
-      'Detected anomaly: 4 VLCC vessels stationary at 26.1°N 56.4°E',
-      'Cross-referencing with IRGCN vessel registry...',
-      'ALERT: Naval blockade pattern confirmed — matching 2019 Hormuz incident',
-      'Loading India crude import dependency graph...',
-      'Calculating cascade: 84.7% Gulf import exposure identified',
-      'Running SPR depletion model: Padur(94%) Mangaluru(88%) Vizag(75%)',
-      'Refinery run-rate projection: Jamnagar -23% at Day 8',
-      'Brent spot model: +$2.20/bbl per day blockade duration',
-      'Monte Carlo simulation: 10,000 scenarios computed in 2.4s',
-      'Optimal mitigation sequence computed',
-      'SPR release + Russian Urals surge covers 82.4% of deficit',
-      'Cape reroute adds 14 days but secures Urals pipeline',
-      'RECOMMENDATION: Approve SPR + Russian surge immediately',
-      'Confidence: 94.2% — based on 847 AIS feeds + 12 OSINT signals',
-    ],
-  },
-  redsea: {
-    title: 'Red Sea / Bab-el-Mandeb Attacks',
-    severity: 'ELEVATED',
-    narrative: [
-      'Houthi drone swarm attack on 3 commercial tankers inside Bab-el-Mandeb strait. UKMTO advises all vessels to avoid corridor.',
-      'Russia-originating Urals cargoes via Suez Canal diverted. Cape of Good Hope reroutes add 14 days transit time.',
-      'AI Analysis: Impact is moderate but sustained. Cape rerouting increases freight cost by 60–80% and disrupts refinery scheduling.',
-      'Recommended: Preemptive charter of Cape-routed vessels, priority berth allocation at Kochi for redirected tankers.',
-    ],
-    cascadeSteps: [
-      'Day 0 — Red Sea suspended. Suez-routed vessels rerouting.',
-      'Day 3 — 14-day transit delay triggers forward contracts.',
-      'Day 7 — Freight cost spike +65%.',
-      'Day 10 — BPCL Kochi blend shift required.',
-      'Day 14 — Cape bypass vessels arrive at Kochi.',
-      'Day 20 — Freight premium stabilizes.',
-    ],
-    consoleLogs: [
-      'Red Sea Maritime Risk Assessment initiated...',
-      'Loading UKMTO incident database: 3 new events detected',
-      'Houthi drone trajectory analysis running...',
-      'Affected vessels: MT Siberian Star, MT Nordic Hawk, MT Eastern Promise',
-      'Suez Canal transit probability: 18% (down from 94%)',
-      'Cape bypass route optimization: 14.2 additional days',
-      'Freight cost model: +$1.2M per voyage via Cape',
-      'India Urals supply impact: -1.4 mbpd for 21 days',
-      'Kochi refinery blend adjustment possible with 72hr notice',
-      'RECOMMENDATION: Charter 3 Cape-routed VLCCs immediately',
-    ],
-  },
-  opec: {
-    title: 'OPEC+ Emergency Supply Cut (−2 mbpd)',
-    severity: 'ELEVATED',
-    narrative: [
-      'OPEC Secretariat announces voluntary production cut of 2.0 mbpd, led by Saudi Arabia, effective immediately.',
-      'Arab Light and Murban allocations to India reduced by 18%. Brent crude spiking toward $100/bbl.',
-      'AI Analysis: Unlike a physical blockade, OPEC cuts allow time to source alternatives. Russian Urals at discount remain viable.',
-      'Recommended: Increase spot purchases from Russia/CPC Blend, activate strategic reserves partially, negotiate Nigerian crude.',
-    ],
-    cascadeSteps: [
-      'Day 0 — OPEC cut announced. Contract volumes reduced.',
-      'Day 5 — Brent reaches $97/bbl.',
-      'Day 10 — Refinery blend adjustment initiated.',
-      'Day 15 — Russian Urals shipments increased.',
-      'Day 25 — New supply equilibrium achieved.',
-    ],
-    consoleLogs: [
-      'OPEC+ Production Cut Analysis initiated...',
-      'Reading OPEC Secretariat communiqué...',
-      'Saudi Arabia quota reduction: -1.1 mbpd confirmed',
-      'UAE/Kuwait combined cut: -0.6 mbpd',
-      'India allocation impact: -0.88 mbpd Arab Light grade',
-      'Brent futures model: $97.2/bbl in 5 days (CI: 94-101)',
-      'Russian Urals discount: -$12.8/bbl vs Brent',
-      'Nigeria spot market: 6 cargoes available at premium +$3.2/bbl',
-      'Optimal diversification: 42% Russia, 28% Nigeria, 30% Gulf spot',
-      'RECOMMENDATION: Execute spot purchases within 48 hours',
-    ],
-  },
-  cyclone: {
-    title: 'Cyclone Tauktae — Gujarat Coast',
-    severity: 'MODERATE',
-    narrative: [
-      'Cyclone Tauktae (Cat 3) approaching Gujarat coast. Sikka and Vadinar ports closed. ~3.4 mbpd unloading capacity offline.',
-      'Jamnagar refinery on standby. 4 tankers anchored offshore awaiting port reopening.',
-      'AI Analysis: Short-duration event (4–6 days). Impact manageable with Mangaluru/Kochi reroutes and minor SPR drawdown.',
-      'Recommended: Reroute pending tankers to Kochi/Mangaluru, temporary SPR buffer, advance cyclone exit clearance protocols.',
-    ],
-    cascadeSteps: [
-      'Day 0 — Sikka/Vadinar ports closed.',
-      'Day 1 — 4 tankers at anchorage.',
-      'Day 2 — Jamnagar on standby.',
-      'Day 4 — Cyclone landfall and passage.',
-      'Day 6 — Port damage assessment.',
-      'Day 8 — Sikka reopens (partial).',
-      'Day 12 — Full operations resume.',
-    ],
-    consoleLogs: [
-      'IMD Cyclone Tauktae track model loaded...',
-      'Landfall prediction: 18.4°N 72.1°E ±55km, Cat 3',
-      'Sikka port closure protocol activated',
-      'Vadinar HPCL/BPCL jetty operations suspended',
-      '4 VLCC vessels redirected to outer anchorage',
-      'Jamnagar refinery precautionary shutdown at 40% rate',
-      'Mangaluru/Kochi divert capacity: 1.8 mbpd available',
-      'SPR buffer at Padur: 94% fill, 0.9 mbpd emergency draw',
-      'Weather model: Cyclone passage in 4.2 days',
-      'RECOMMENDATION: Reroute to Kochi — no SPR release needed yet',
-    ],
-  },
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // COLOUR PALETTE — warm military satellite-imagery theme
 // ─────────────────────────────────────────────────────────────────────────────
 const C = {
@@ -417,7 +283,7 @@ export default function NationalEnergyTwin() {
           return d + 1
         })
         setNarrativeIdx(i => {
-          let max = SCENARIOS[activeEvent]?.narrative.length ?? 1
+          let max = backendAudit?.groq_audit?.narratives?.length ?? 1
           if (backendAudit && backendAudit.decision_trace && backendAudit.decision_trace.length > 0) {
             max = backendAudit.decision_trace.length
           }
@@ -439,7 +305,7 @@ export default function NationalEnergyTwin() {
         sourceLogs = [...sourceLogs, ...backendAudit.execution_log]
       }
     } else {
-      sourceLogs = SCENARIOS[activeEvent].consoleLogs
+      sourceLogs = ["Awaiting orchestrator execution log..."]
     }
 
     setConsoleLogs([])
@@ -459,7 +325,7 @@ export default function NationalEnergyTwin() {
       idx++
     }, 850)
     return () => { if (consoleTimerRef.current) clearInterval(consoleTimerRef.current) }
-  }, [mode, activeEvent, backendAudit])
+  }, [mode, activeEvent, backendAudit?.timestamp])
 
   // ── Auto-scroll console to bottom ──
   useEffect(() => {
@@ -595,7 +461,8 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
   const sprYFill = scale > 4 ? 1.5 : 5
   const sprYRelease = scale > 4 ? 7.5 : 14
 
-  const scenario = SCENARIOS[activeEvent]
+  const dynamicTitle = backendAudit?.raw_signal ? (backendAudit.raw_signal.length > 60 ? backendAudit.raw_signal.substring(0, 60) + '...' : backendAudit.raw_signal) : 'Awaiting Live Threat Signal...'
+  const dynamicSeverity = backendAudit?.groq_risk_validation?.adjusted_severity || backendScenarios?.severity || 'ANALYZING'
 
   const routeColor = (rid: RouteId): string => {
     if (mode === 'LIVE') return C.primary
@@ -675,7 +542,7 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
             <div style={{ fontSize: 8, color: '#64748b', letterSpacing: '1px', fontWeight: 700 }}>ACTIVE SCENARIO</div>
             <div style={{ fontSize: 12, fontWeight: 800,
               color: activeEvent === 'none' ? '#0f172a' : '#d97706' }}>
-              {activeEvent === 'none' ? 'All Systems Normal — Live Feeds' : scenario.title}
+              {activeEvent === 'none' ? 'All Systems Normal — Live Feeds' : dynamicTitle}
             </div>
           </div>
           {mode === 'SIMULATION' && (
@@ -1197,7 +1064,7 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#d97706', minWidth: 56 }}>DAY {simDay}</span>
               </div>
               <div style={{ position: 'relative', marginTop: 2, height: 12 }}>
-                {scenario.cascadeSteps.slice(0, 7).map((step, i) => {
+                {(backendAudit?.groq_audit?.cascade_steps || []).slice(0, 7).map((step: string, i: number) => {
                   const dayStr = step.split('—')[0].replace('Day ', '').trim()
                   const day = parseInt(dayStr)
                   const pct = (day / 30) * 100
@@ -1272,7 +1139,7 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                     </span>
                   </div>
                 ))}
-                {consoleLogs.length > 0 && consoleLogs.length < (SCENARIOS[activeEvent]?.consoleLogs.length ?? 0) && (
+                {consoleLogs.length > 0 && mode === 'SIMULATION' && !backendAudit && (
                   <div style={{ fontSize: 8, color: '#059669' }}>
                     <span className="console-cursor">█</span>
                   </div>
@@ -1383,10 +1250,10 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                     boxShadow: '0 0 8px rgba(220,38,38,0.4)', flexShrink: 0 }} className="pulse-ring-fast"/>
                   <div>
                     <div style={{ fontSize: 9, color: '#be123c', fontWeight: 800, letterSpacing: '1.5px' }}>
-                      {scenario.severity} — SIMULATION ACTIVE
+                      {dynamicSeverity} — SIMULATION ACTIVE
                     </div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#0f172a', marginTop: 1 }}>
-                      {scenario.title}
+                      {dynamicTitle}
                     </div>
                   </div>
                 </div>
@@ -1459,7 +1326,7 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                       style={{ fontSize: 10, color: '#0f172a', lineHeight: 1.55, margin: 0, fontWeight: 500 }}>
                       {backendAudit && backendAudit.decision_trace && backendAudit.decision_trace.length > 0
                         ? backendAudit.decision_trace[narrativeIdx % backendAudit.decision_trace.length]?.output_summary
-                        : scenario.narrative[narrativeIdx]}
+                        : (backendAudit?.groq_audit?.narratives ? backendAudit.groq_audit.narratives[narrativeIdx % backendAudit.groq_audit.narratives.length] : 'Generating dynamic AI narrative. Please wait...')}
                     </motion.p>
                   </AnimatePresence>
                 </div>
@@ -1468,7 +1335,7 @@ const SCENARIO_NEWS_ARTICLES: Record<EventId, string> = {
                 <div>
                   <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '1.5px', marginBottom: 8, fontWeight: 800 }}>PREDICTED CASCADE</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {((backendAudit?.gemini_audit?.cascade_steps && backendAudit.gemini_audit.cascade_steps.length > 0 ? backendAudit.gemini_audit.cascade_steps : scenario.cascadeSteps) as string[]).map((step: string, i: number) => {
+                    {(backendAudit?.groq_audit?.cascade_steps || []).map((step: string, i: number) => {
                       const dayMatch = step.match(/Day (\d+)/)
                       const day = dayMatch ? parseInt(dayMatch[1]) : 0
                       const past = simDay >= day

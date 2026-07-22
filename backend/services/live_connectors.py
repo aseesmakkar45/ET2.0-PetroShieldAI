@@ -278,7 +278,7 @@ class LiveDataConnectors:
             })
             url = f"https://api.gdeltproject.org/api/v2/doc/doc?{params}"
             req = urllib.request.Request(url, headers={'User-Agent': 'PetroShieldAI/2.0'})
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=4) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
 
             for art in data.get("articles", []):

@@ -125,7 +125,7 @@ class EventIntelligence:
         return asdict(self)
 
 
-def fetch_article_content(url: str, timeout: int = 12) -> str:
+def fetch_article_content(url: str, timeout: int = 4) -> str:
     """
     Download and extract clean readable text from a URL.
     Uses stdlib only — no BeautifulSoup, no Trafilatura.
@@ -187,8 +187,7 @@ def _extract_with_groq(text: str, api_key: str) -> Optional[EventIntelligence]:
     """
     try:
         from groq import Groq
-        client = Groq(api_key=api_key)
-
+        client = Groq(api_key=api_key, max_retries=0, timeout=15.0)
         # Truncate text to avoid token limits while keeping key content
         truncated = text[:6000] if len(text) > 6000 else text
 

@@ -17,12 +17,26 @@ import {
 import { getDashboard, getMapData, getMaritimeWeather, getProcurement, getSPR, api, API_BASE_URL } from '@/services/api'
 
 // Dynamically import Leaflet Map to avoid SSR errors
-const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { ssr: false })
+const GlobalMap = dynamic(() => import('@/components/map/GlobalMap'), { 
+  ssr: false,
+  loading: () => (
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#060d1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: '#38bdf8', fontSize: 13, fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        Loading Geospatial Module...
+      </div>
+    </div>
+  )
+})
 import NationalEnergyTwin from './NationalEnergyTwin'
+import HistoryView from './HistoryView'
+
+let globalSystemLogs: string[] = []
 
 export default function CommandCenter({ view }: { view?: string }) {
   const queryClient = useQueryClient()
   const [currentHash, setCurrentHash] = useState('')
+  const [activeReportTab, setActiveReportTab] = useState<'generate' | 'history'>('generate')
   const [reportFilter, setReportFilter] = useState('ALL')
   const [selectedReportType, setSelectedReportType] = useState('Weekly Supply Chain Risk Assessment')
   const [selectedTimeRange, setSelectedTimeRange] = useState('Last 7 Days')
@@ -66,7 +80,7 @@ export default function CommandCenter({ view }: { view?: string }) {
   const [aisSaveStatus, setAisSaveStatus] = useState('')
 
   // Live system logs state
-  const [systemLogs, setSystemLogs] = useState<string[]>([])
+  const [systemLogs, setSystemLogs] = useState<string[]>(globalSystemLogs)
   const terminalEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -78,10 +92,14 @@ export default function CommandCenter({ view }: { view?: string }) {
       try {
         const data = JSON.parse(event.data)
         if (data.type === 'log_line') {
-          setSystemLogs(prev => {
-            const updated = [...prev, data.message]
-            return updated.slice(-150)
-          })
+          globalSystemLogs.push(data.message)
+          if (globalSystemLogs.length > 150) {
+            globalSystemLogs = globalSystemLogs.slice(-150)
+          }
+          setSystemLogs([...globalSystemLogs])
+          if (data.message.includes('Saved automated report to historic database successfully')) {
+            queryClient.invalidateQueries({ queryKey: ['reports-history'] })
+          }
         }
       } catch (err) {
         console.error('Error parsing WS log:', err)
@@ -131,28 +149,34 @@ export default function CommandCenter({ view }: { view?: string }) {
   const { data: dashboard, isLoading: dashLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboard,
-    refetchInterval: 5000,
+    refetchInterval: 30000,
+    staleTime: 25000,
   })
 
   // 1b. Fetch procurement plan
   const { data: procurementData } = useQuery({
     queryKey: ['procurement'],
     queryFn: () => getProcurement(),
-    refetchInterval: 5000,
+    refetchInterval: 60000,
+    staleTime: 55000,
   })
 
   // 1c. Fetch SPR advisory
   const { data: sprData } = useQuery({
     queryKey: ['spr'],
     queryFn: () => getSPR(),
-    refetchInterval: 5000,
+    refetchInterval: 60000,
+    staleTime: 55000,
   })
 
-  // 2. Fetch Map coordinates
+  // 2. Fetch Map coordinates — long staleTime so the map never flickers during background refresh
   const { data: mapData, isLoading: mapLoading } = useQuery({
     queryKey: ['map'],
     queryFn: getMapData,
-    refetchInterval: 5000,
+    refetchInterval: 60000,       // vessel positions update at most every 60s
+    staleTime: 55000,             // keep existing data fresh; no re-render until truly stale
+    refetchOnWindowFocus: false,
+    placeholderData: (prev: any) => prev,  // keep old map visible during background refetch
   })
 
   // 2b. Fetch maritime weather (live, 1hr cache on backend)
@@ -167,14 +191,16 @@ export default function CommandCenter({ view }: { view?: string }) {
   const { data: replayData } = useQuery({
     queryKey: ['decision-replay'],
     queryFn: () => api.get('/api/decision-replay').then(r => r.data),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
+    staleTime: 25000,
   })
 
   // 4. Fetch persistent database scenario history
   const { data: reportHistory = [] } = useQuery({
     queryKey: ['reports-history'],
     queryFn: () => api.get('/api/reports/history').then(r => r.data),
-    refetchInterval: 5000,
+    refetchInterval: 60000,
+    staleTime: 55000,
   })
 
   // 4. Mutation to trigger pipeline simulation
@@ -209,6 +235,13 @@ export default function CommandCenter({ view }: { view?: string }) {
 
   const triggerWhatIf = (type: string) => {
     setSelectedScenarioType(type)
+    if (type === 'redsea') {
+      setSimulationPrompt("Red Sea shipping disruption escalated. Houthi forces launch fresh strikes in Bab-el-Mandeb corridor. Tanker transits plummet by 80%.")
+    } else if (type === 'opec') {
+      setSimulationPrompt("OPEC+ announces an unexpected voluntary production cut of 2 million barrels per day starting next month, tightening global supply.")
+    } else {
+      setSimulationPrompt("CRITICAL conflict, OPEC quota anxiety, and sanctions blockade: Iran blockades the Strait of Hormuz, shutting down 100% of tanker transits. Brent crude spikes by +$24/bbl.")
+    }
     whatIfMutation.mutate({
       scenario_type: type,
       current_brent: 82.5 + (type === 'hormuz' ? 10.0 : (type === 'redsea' ? 5.0 : -3.0))
@@ -1074,7 +1107,10 @@ export default function CommandCenter({ view }: { view?: string }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
             {renderDetailedProcurementCard()}
-            {renderSupplierComplianceCard()}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {renderSupplierComplianceCard()}
+              {renderRefineryImpactSummaryCard()}
+            </div>
           </div>
         </div>
 
@@ -1090,7 +1126,6 @@ export default function CommandCenter({ view }: { view?: string }) {
           <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: 16, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {renderSPRAffectionCard()}
-              {renderRefineryImpactSummaryCard()}
             </div>
             <div>
               {renderCavernsStatusCard()}
@@ -1371,32 +1406,52 @@ export default function CommandCenter({ view }: { view?: string }) {
 
     const handleGenerateReport = async () => {
       setIsGenerating(true)
-      setTimeout(() => {
-        setIsGenerating(false)
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/reports/generate?report_type=${encodeURIComponent(selectedReportType)}&time_range=${encodeURIComponent(selectedTimeRange)}`, {
+          method: 'POST'
+        });
+        const data = await response.json();
+        
         setGeneratedReport({
           title: selectedReportType,
           date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
           timeRange: selectedTimeRange,
           author: 'PetroShield AI — Autonomous Taskforce Intelligence Engine',
-          status: 'GEMINI AUDITED & APPROVED',
-          keyTakeaways: [
-            'Geopolitical maritime disruption score currently elevated at 84% in Arabian Sea / Bab-el-Mandeb threat corridors.',
-            'SciPy Linear Programming optimizer recommends allocating 0.7 mbpd Russian Urals crude via Cape bypass to secure Sikka Port supply continuity.',
-            'ISPRL Padur and Mangaluru caverns have 34 days of reserve buffer cover under active drawdown mandate.'
-          ],
-          tableData: [
-            { indicator: 'Brent Crude Benchmark', baseline: '$82.50/bbl', current: '$96.40/bbl', delta: '+16.8%' },
-            { indicator: 'National Import Deficit', baseline: '0.0 mbpd', current: '1.4 mbpd', delta: '-1.4 mbpd' },
-            { indicator: 'Refinery Run Rate (Sikka/Vadinar)', baseline: '98.5%', current: '88.2%', delta: '-10.3%' },
-            { indicator: 'Grid Sector Power Deficit', baseline: '0 MW', current: '3,200 MW', delta: 'Elevated' }
-          ]
-        })
+          status: 'GROQ AUDITED & APPROVED',
+          markdownContent: typeof data === 'string' ? data : (data.markdown_content || JSON.stringify(data, null, 2))
+        });
         setShowPreviewModal(true)
-      }, 1400)
+      } catch (err) {
+        console.error("Failed to generate report", err);
+      } finally {
+        setIsGenerating(false)
+      }
     }
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 16, height: 'calc(100vh - var(--topbar-height) - 40px)', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--topbar-height) - 40px)' }}>
+        {/* Report Operations Tabs */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button 
+            onClick={() => setActiveReportTab('generate')}
+            style={{ padding: '10px 18px', background: activeReportTab === 'generate' ? '#0f172a' : '#ffffff', color: activeReportTab === 'generate' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            Generate Executive Briefing
+          </button>
+          <button 
+            onClick={() => setActiveReportTab('history')}
+            style={{ padding: '10px 18px', background: activeReportTab === 'history' ? '#0f172a' : '#ffffff', color: activeReportTab === 'history' ? 'white' : '#64748b', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            Archive & Simulation History
+          </button>
+        </div>
+
+        {activeReportTab === 'history' ? (
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+            <HistoryView />
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: 16, flex: 1, minHeight: 0, alignItems: 'stretch' }}>
         {/* Left pane: Executive Intelligence Briefs */}
         <div className="glass-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1407,17 +1462,17 @@ export default function CommandCenter({ view }: { view?: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 11.5, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
             <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, borderLeft: '4px solid #ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
               <div style={{ fontSize: 9, fontWeight: 800, color: '#ef4444', letterSpacing: '1px', marginBottom: 4 }}>GEOPOLITICAL RISK ALERT</div>
-              <strong>Maritime Chokepoint Lockout:</strong> Tensions in Bab-el-Mandeb and Strait of Hormuz adding <strong>+2.3 days</strong> to Sikka delivery schedules. Diverted crude pool total: 1.8 mbpd.
+              <strong>Current Status: {dashboard?.risk_level || 'MONITOR'}</strong> - Real-time supply disruption probability assessed at <strong>{dashboard?.overall_risk_score?.toFixed(1) || '0.0'}%</strong>. Estimated crude supply deficit: <strong>{dashboard?.kpi_cards?.find((k: any) => k.id === 'supply_loss')?.value || '0.00'} mbpd</strong>.
             </div>
 
             <div style={{ padding: 12, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, borderLeft: '4px solid #f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
               <div style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', letterSpacing: '1px', marginBottom: 4 }}>MARKET VOLATILITY FORECAST</div>
-              <strong>Monte Carlo Price Jump:</strong> Brent crude GBM projection indicates a 78% probability of price testing <strong>$98.50/bbl</strong> within 14 days if Hormuz blockade persists.
+              <strong>Crude Oil Projection:</strong> Brent crude simulation projection indicates a price testing <strong>${dashboard?.brent_price_usd?.toFixed(2) || '0.00'}/bbl</strong> under current operational conditions.
             </div>
 
             <div style={{ padding: 12, background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, borderLeft: '4px solid #10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
               <div style={{ fontSize: 9, fontWeight: 800, color: '#10b981', letterSpacing: '1px', marginBottom: 4 }}>SPR ADVISORY DIRECTIVE</div>
-              <strong>ISPRL Cavern Coverage:</strong> Strategic reserves stored at <strong>78% capacity (23.4M barrels)</strong>. Emergency release mandate authorized under Cabinet Taskforce Guidelines.
+              <strong>ISPRL Cavern Coverage:</strong> Strategic reserves actively providing <strong>{dashboard?.spr_days_cover?.toFixed(1) || '0.0'} days</strong> of import cover. Drawdown mandates will be determined by Cabinet Taskforce if deficits escalate.
             </div>
           </div>
         </div>
@@ -1430,7 +1485,7 @@ export default function CommandCenter({ view }: { view?: string }) {
               <span style={{ fontSize: 11, color: 'var(--color-text-primary)', fontWeight: 800, letterSpacing: '0.5px' }}>AUTONOMOUS REPORT OPERATIONS</span>
             </div>
             <span style={{ fontSize: 9, color: 'var(--color-emerald)', fontWeight: 700, padding: '3px 8px', background: 'rgba(16,185,129,0.1)', borderRadius: 4, border: '1px solid rgba(16,185,129,0.2)' }}>
-              GEMINI 1.5 PRO READY
+              GROQ LLaMA 3.1 READY
             </span>
           </div>
 
@@ -1496,36 +1551,9 @@ export default function CommandCenter({ view }: { view?: string }) {
                 </span>
               </div>
 
-              <div style={{ fontSize: 10.5, color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <strong>KEY AUDIT TAKEAWAYS:</strong>
-                {generatedReport.keyTakeaways.map((t: string, i: number) => (
-                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                    <span style={{ color: '#2563eb' }}>•</span>
-                    <span>{t}</span>
-                  </div>
-                ))}
+              <div style={{ fontSize: 10.5, color: 'var(--color-text-primary)', background: 'var(--color-bg-secondary)', padding: 12, borderRadius: 6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                {generatedReport.markdownContent}
               </div>
-
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6, fontSize: 10 }}>
-                <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary)', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontSize: 8.5 }}>
-                    <th style={{ padding: 6, textAlign: 'left' }}>Indicator</th>
-                    <th style={{ padding: 6, textAlign: 'right' }}>Baseline</th>
-                    <th style={{ padding: 6, textAlign: 'right' }}>Current</th>
-                    <th style={{ padding: 6, textAlign: 'right' }}>Delta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {generatedReport.tableData.map((row: any, idx: number) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                      <td style={{ padding: 6, color: 'var(--color-text-primary)', fontWeight: 600 }}>{row.indicator}</td>
-                      <td style={{ padding: 6, textAlign: 'right', color: 'var(--color-text-muted)' }}>{row.baseline}</td>
-                      <td style={{ padding: 6, textAlign: 'right', color: 'var(--color-text-primary)', fontWeight: 700 }}>{row.current}</td>
-                      <td style={{ padding: 6, textAlign: 'right', color: row.delta.startsWith('+') ? '#dc2626' : '#10b981', fontWeight: 800 }}>{row.delta}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
                 <a 
@@ -1547,11 +1575,7 @@ export default function CommandCenter({ view }: { view?: string }) {
             Master Scenario Incident Reports
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(reportHistory.length > 0 ? reportHistory : [
-              { pdf_filename: 'Master_Hormuz_Blockade_Incident_Report.pdf', scenario_title: 'Strait of Hormuz Blockade — Master Incident Briefing', date_display: '10 May 2026', severity: 'CRITICAL', disruption_probability: 84.5 },
-              { pdf_filename: 'Master_RedSea_Attack_Incident_Report.pdf', scenario_title: 'Red Sea Bab-el-Mandeb Attack — Master Incident Briefing', date_display: '09 May 2026', severity: 'ELEVATED', disruption_probability: 74.0 },
-              { pdf_filename: 'Master_OPEC_Supply_Cut_Incident_Report.pdf', scenario_title: 'OPEC+ Emergency Supply Cut — Master Incident Briefing', date_display: '08 May 2026', severity: 'MODERATE', disruption_probability: 62.0 }
-            ]).map((rep: any, idx: number) => (
+            {(reportHistory || []).map((rep: any, idx: number) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--color-bg-primary)', borderRadius: 6, border: '1px solid var(--color-border)' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1608,6 +1632,8 @@ export default function CommandCenter({ view }: { view?: string }) {
             </div>
           </div>
         </div>
+      </div>
+        )}
       </div>
     )
   }
@@ -1826,7 +1852,7 @@ export default function CommandCenter({ view }: { view?: string }) {
               </span>
             )}
             <button 
-              onClick={() => setSystemLogs([])}
+              onClick={() => { globalSystemLogs = []; setSystemLogs([]) }}
               style={{
                 background: 'none',
                 color: 'var(--color-text-muted)',

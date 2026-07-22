@@ -57,14 +57,15 @@ interface Props {
 }
 
 export default function GlobalMap({ mapData, layers, weatherData }: Props) {
-  const [mapKey, setMapKey] = useState<string>("")
-  useEffect(() => {
-    setMapKey("map-" + Math.random().toString(36).substr(2, 9))
-  }, [])
-
-  if (!mapData) return null
-  if (!mapKey) {
-    return <div style={{ width: '100%', height: '100%', background: '#060d1a' }} />
+  if (!mapData) {
+    return (
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#060d1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#94a3b8', fontSize: 13, fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          Loading Live AIS & Satellite Overlay Data...
+        </div>
+      </div>
+    )
   }
 
   // Default all layers to visible when no layers prop provided (e.g. mini-map on Overview)
@@ -77,17 +78,18 @@ export default function GlobalMap({ mapData, layers, weatherData }: Props) {
   const L_WEATHER     = layers?.weather     ?? false
 
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#f8fafc' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#060d1a' }}>
       <MapContainer
-        key={mapKey}
         center={[20.5937, 78.9629]} // Centered on India
         zoom={4}
-        style={{ width: '100%', height: '100%', zIndex: 1 }}
+        style={{ width: '100%', height: '100%', zIndex: 1, background: '#060d1a' }}
         zoomControl={false}
         attributionControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains={['a', 'b', 'c', 'd']}
+          maxZoom={19}
         />
 
         {/* Routes — toggled by Trade Routes layer */}

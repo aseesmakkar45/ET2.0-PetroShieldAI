@@ -1,7 +1,8 @@
 """
 Signals Routes – serves risk signals and triggers the multi-agent pipeline.
 """
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, BackgroundTasks
+from fastapi.concurrency import run_in_threadpool
 from agents.orchestrator import get_active_state, run_petroshield_pipeline
 from services.risk_engine import generate_price_history
 import random
@@ -19,15 +20,28 @@ async def get_risk_signals(count: int = Query(default=10, ge=1, le=50)):
 
 @router.post("/signals/simulate")
 async def simulate_signal(
+    background_tasks: BackgroundTasks,
     raw_signal: str = Body(..., embed=True),
     source_type: str = Body(default="NEWS", embed=True)
 ):
-    """Trigger the full 5-agent pipeline for a new signal."""
-    # Generate mock AIS tankers from active routes to run vessel anomaly detection
-    from simulation.ais_generator import generate_vessels
-    mock_vessels = generate_vessels(count=15)
+    """Trigger the full 5-agent pipeline for a new signal.
     
-    state = run_petroshield_pipeline(raw_signal, source_type, mock_vessels)
+    Runs in a thread pool so it doesn't block the async event loop during
+    the synchronous Groq LLM calls (which can take 5-30 seconds each).
+    """
+    from simulation.ais_generator import generate_vessels
+    from routes.scenarios import generate_and_save_report_for_state
+    
+    mock_vessels = generate_vessels(count=15)
+
+    # Run the blocking synchronous pipeline in a thread executor
+    state = await run_in_threadpool(
+        run_petroshield_pipeline, raw_signal, source_type, mock_vessels
+    )
+    
+    # Schedule automated real-time Groq report generation
+    background_tasks.add_task(generate_and_save_report_for_state, state, "Manual Simulation")
+    
     return state.to_dict()
 
 

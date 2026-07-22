@@ -31,12 +31,25 @@ async def generate_groq_report(
     Stage 3: Prompts Groq to generate a structured scenario report in the required JSON format.
     """
     state = get_active_state()
-    scenario_data = state.to_dict() if state else {
-        "active_event": "hormuz",
-        "brent_price": 96.4,
-        "shortfall_mbpd": 1.4,
-        "spr_release_rate": 1.15
-    }
+    
+    if state:
+        st = state.to_dict()
+        scenario_data = {
+            "raw_signal": st.get("raw_signal"),
+            "source_type": st.get("source_type"),
+            "risk_signal": st.get("risk_signal"),
+            "scenario_result": st.get("scenario_result"),
+            "procurement_plan": st.get("procurement_plan"),
+            "spr_advisory": st.get("spr_advisory"),
+            "parsed_references": st.get("parsed_references")
+        }
+    else:
+        scenario_data = {
+            "active_event": "hormuz",
+            "brent_price": 96.4,
+            "shortfall_mbpd": 1.4,
+            "spr_release_rate": 1.15
+        }
     
     report_json = groq_prompting_agent.generate_scenario_report(
         scenario_data=scenario_data,

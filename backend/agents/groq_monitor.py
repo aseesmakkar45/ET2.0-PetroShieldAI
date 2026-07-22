@@ -1,5 +1,5 @@
 """
-Gemini Monitoring & Auditing Agent (Agent 6) – audits predictions
+Groq Monitoring & Auditing Agent (Agent 6) – audits predictions
 made by subagents 1-4 and generates dynamic executive briefings and scenario narratives.
 """
 import json
@@ -12,7 +12,7 @@ logger = logging.getLogger("uvicorn.error")
 
 def audit_and_brief_with_groq(state) -> Optional[Dict[str, Any]]:
     """
-    Query Gemini API to audit predictions across local agents,
+    Query Groq API to audit predictions across local agents,
     verify consistency, and generate dynamic briefings and narratives.
     """
     api_key = get_groq_api_key() or ""
@@ -110,8 +110,9 @@ Perform a deep risk audit and generate policymaker materials.
 2. **Dynamic Briefing & Narratives**:
    - Write a polished, context-rich Executive Briefing for Cabinet decision-makers (in Markdown format). Do NOT use static templates. Customize it to the specific news event.
    - Create 4 sequential, context-specific narratives (e.g. Day 0, Day 5, Day 12, Day 20) simulating the timeline of the disruption.
-   - Create 6 chronological predicted cascade steps (e.g., "Day 0 — Hormuz blocked. Gulf tankers frozen.", "Day 3 — ...") showing downstream impacts.
-
+   - Create 6 chronological predicted cascade steps (e.g., "Day 0 - Initial threat materializes. Vessels reroute.", "Day 3 - ...") showing downstream impacts.
+   - Do NOT simply copy the example. Base the steps strictly on the specific event provided.
+   
 You MUST respond ONLY with a raw JSON object (no markdown fence blocks like ```json, no trailing comments). The schema must match:
 {{
   "executive_briefing": "Cabinet Briefing text here in Markdown format. Limit to 300 words.",
@@ -160,7 +161,7 @@ You MUST respond ONLY with a raw JSON object (no markdown fence blocks like ```j
 def _get_fallback_executive_briefing(state) -> Dict[str, Any]:
     """
     Data-driven local fallback for the executive briefing, narratives, and cascades.
-    Ensures that when Gemini is rate-limited, the system still displays high-fidelity,
+    Ensures that when Groq is rate-limited, the system still displays high-fidelity,
     event-specific dynamic content derived from subagent outputs rather than returning None.
     """
     raw_signal = state.raw_signal
@@ -258,7 +259,7 @@ def _get_fallback_executive_briefing(state) -> Dict[str, Any]:
 
 def _get_fallback_risk_audit(risk_signal, raw_signal: str) -> Dict[str, Any]:
     """
-    Data-driven local risk audit fallback when Gemini API is unavailable.
+    Data-driven local risk audit fallback when Groq API is unavailable.
     Uses actual attributes from the risk_signal object and KG data.
     UPGRADED: Removed 3 hardcoded template responses (Hormuz/RedSea/else).
     All evidence is derived from actual extracted data, not fabricated text.
@@ -356,10 +357,10 @@ def _get_fallback_risk_audit(risk_signal, raw_signal: str) -> Dict[str, Any]:
     # Confidence
     conf_level = "HIGH" if adjusted_risk >= 60 else ("MEDIUM" if adjusted_risk >= 35 else "LOW")
     conf_explanation = (
-        f"Fallback audit (Gemini API unavailable). Risk score {adjusted_risk:.1f}% "
+        f"Fallback audit (Groq API unavailable). Risk score {adjusted_risk:.1f}% "
         f"derived from KG chokepoint risk scores (avg {sum(cp_risk_scores)/len(cp_risk_scores):.0f}/100) "
         if cp_risk_scores else
-        f"Fallback audit (Gemini API unavailable). Risk score {adjusted_risk:.1f}% maintained from Agent 1 assessment."
+        f"Fallback audit (Groq API unavailable). Risk score {adjusted_risk:.1f}% maintained from Agent 1 assessment."
     )
 
     assumptions = [
@@ -367,7 +368,7 @@ def _get_fallback_risk_audit(risk_signal, raw_signal: str) -> Dict[str, Any]:
         "Physical infrastructure damage not confirmed — supply delay rather than permanent loss modeled.",
     ]
     uncertainties = [
-        "Gemini API unavailable — audit performed without natural language reasoning.",
+        "Groq API unavailable — audit performed without natural language reasoning.",
         "Confidence interval widened: ±15% on all risk and supply impact estimates.",
     ]
 
@@ -387,7 +388,7 @@ def _get_fallback_risk_audit(risk_signal, raw_signal: str) -> Dict[str, Any]:
 
 def audit_risk_prediction_with_groq(risk_signal, raw_signal: str) -> Optional[Dict[str, Any]]:
     """
-    Independent Gemini audit and validation of the subagent risk predictions.
+    Independent Groq audit and validation of the subagent risk predictions.
     Checks logical consistency, supporting/contradictory evidence, confidence level,
     assumptions, and weaknesses/uncertainties.
     """

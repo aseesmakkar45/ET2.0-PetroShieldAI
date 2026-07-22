@@ -1,5 +1,5 @@
 """
-Gemini Prompting Agent – Dedicated multi-stage LLM Orchestration Agent.
+Groq Prompting Agent – Dedicated multi-stage LLM Orchestration Agent.
 Prompts Groq for:
 1. News Article Semantic Context Extraction (Task 1)
 2. Multi-Agent Prediction & Sanctions Audits (Task 2)
@@ -70,7 +70,7 @@ class GroqPromptingAgent:
     # ══════════════════════════════════════════════════════════════════════════
     def parse_news_article(self, news_input: str) -> Dict[str, Any]:
         """
-        Stage 1: Prompts Gemini to parse raw news article text or live URLs
+        Stage 1: Prompts Groq to parse raw news article text or live URLs
         and gather structured semantic context in the required format.
         """
         # Handle live URL scraping if input starts with http
@@ -159,8 +159,8 @@ class GroqPromptingAgent:
     # ══════════════════════════════════════════════════════════════════════════
     def audit_system_state(self, system_state_summary: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Stage 2: Prompts Gemini for all sorts of system audits (Mathematical consistency,
-        OFAC sanctions compliance, VLCC logistics feasibility, and SPR reserves drawdown checks).
+        Stage 2: Prompts Groq for all sorts of system audits (Mathematical consistency,
+        Sanctions checking, Physical logistics checking, and SPR reserves drawdown checks).
         """
         system_instruction = (
             "You are the Chief Audit & Verification Inspector for the Ministry of Petroleum and Natural Gas (MoPNG).\n"
@@ -214,77 +214,92 @@ class GroqPromptingAgent:
         time_range: str = "Last 7 Days"
     ) -> Dict[str, Any]:
         """
-        Stage 3: Prompts Gemini to generate the executive report for any scenario in the exact desired format.
+        Stage 3: Prompts Groq to generate the executive report for any scenario in the exact desired markdown format.
         """
         system_instruction = (
             "You are the Chief Intelligence Director for the National Energy Crisis Management Taskforce (NECC), Ministry of Petroleum and Natural Gas.\n"
             "Your task is to generate a comprehensive, executive-level crisis report based on the provided scenario simulation parameters, "
             "Monte Carlo price distributions, and SciPy LP rerouting plans.\n\n"
-            "CRITICAL WRITING RULE:\n"
-            "Do NOT use technical AI terminology such as 'Gemini', 'Agent', 'AI Model', 'LLM', or 'Prompt' anywhere in your text. "
-            "Write strictly in formal Government of India Cabinet Ministry tone.\n\n"
-            "Respond ONLY with a JSON object matching this exact schema:\n"
-            "{\n"
-            '  "title": "Executive Report Title",\n'
-            '  "status": "CABINET COMMISSION VERIFIED & APPROVED",\n'
-            '  "executive_summary": "Comprehensive 3-paragraph executive summary detailing threat context, optimization strategy, and outlook.",\n'
-            '  "key_takeaways": [\n'
-            '    "Key finding 1",\n'
-            '    "Key finding 2",\n'
-            '    "Key finding 3"\n'
-            '  ],\n'
-            '  "indicators_table": [\n'
-            '    {"indicator": "Brent Crude Benchmark", "baseline": "$82.50/bbl", "current_value": "$96.40/bbl", "delta": "+16.8%"},\n'
-            '    {"indicator": "National Import Deficit", "baseline": "0.0 mbpd", "current_value": "1.4 mbpd", "delta": "-1.4 mbpd"},\n'
-            '    {"indicator": "Refinery Run Rate", "baseline": "98.5%", "current_value": "88.2%", "delta": "-10.3%"}\n'
-            '  ],\n'
-            '  "taskforce_directives": [\n'
-            '    "Directive 1: Authorize Rank 1 cargo rerouting.",\n'
-            '    "Directive 2: Release Padur SPR cavern reserves at 1.15 mbpd.",\n'
-            '    "Directive 3: Initiate daily GDELT news intelligence monitoring cycle."\n'
-            '  ]\n'
-            "}"
+            "CRITICAL WRITING RULES:\n"
+            "1. Do NOT use technical AI terminology such as 'Groq', 'Agent', 'AI Model', 'LLM', or 'Prompt' anywhere in your text. "
+            "2. Write strictly in formal Government of India Cabinet Ministry tone.\n"
+            "3. Ensure the report feels official, serious, and ready for presentation to the ministries.\n"
+            "4. You MUST include dynamic informative graphs using Markdown (Mermaid.js pie charts or flowcharts) and ASCII tables to display the numerical data and predictions visually.\n\n"
+            "Respond ONLY with a detailed Markdown document matching this exact format:\n\n"
+            "# EXECUTIVE SCENARIO BRIEFING: [Scenario Title]\n\n"
+            "**Prepared By:** Directorate General of Hydrocarbons, Ministry of Petroleum and Natural Gas\n"
+            "**Date:** [Use Date/Time from data]\n"
+            "**Severity:** [CRITICAL/ELEVATED/MODERATE]\n"
+            "**Risk Probability:** [Percentage]%\n\n"
+            "## 1. Trigger Event & Background\n"
+            "[Detailed narrative on the primary geopolitical or physical event that triggered the disruption. Includes locations, entities involved, and immediate real-world consequences.]\n\n"
+            "## 2. Market Forecast & Predictions\n"
+            "[Projections of Brent Crude pricing, GDP impact percentage, expected increase in the national import bill, and potential shortages/delays. "
+            "MUST INCLUDE a Mermaid.js graph or ASCII table visualizing these predictions.]\n\n"
+            "## 3. Procurement & Rerouting Recommendations\n"
+            "[Strategic recommendations for bypassing affected routes (e.g., blockages predicted, recommended detours) and alternative supplier allocations. "
+            "MUST INCLUDE a Mermaid.js flowchart or graph visualizing the recommended supply chain shift.]\n\n"
+            "## 4. Strategic Petroleum Reserve (SPR) Mitigation\n"
+            "[Calculated mandates for SPR drawdown rates, remaining runway days, and cavern-specific logistics to sustain operations at primary refineries.]\n\n"
+            "## 5. Intelligence References\n"
+            "[List references to parsed News Articles, Sanction Registries, and Commodity Price benchmarks provided in the data payload.]\n"
         )
 
         prompt = (
-            f"Generate a formal executive report of type '{report_type}' for period '{time_range}' "
-            f"using the following scenario simulation data:\n\n{json.dumps(scenario_data, indent=2)}"
+            f"Generate a formal executive Markdown report of type '{report_type}' for period '{time_range}' "
+            f"using the following scenario simulation data (make sure to use the numerical predictions, dates, and references in the report):\n\n{json.dumps(scenario_data, indent=2)}"
         )
 
         response_text = self._call_groq(prompt, system_instruction)
-        parsed_report = self._clean_json(response_text)
 
-        if parsed_report:
+        if response_text:
             logger.info(f"[GROQ AGENT] ✅ Stage 3 Executive Report generation successful.")
-            return parsed_report
+            return {"markdown_content": response_text}
 
         logger.warning("[GROQ AGENT] Stage 3 fallback activated.")
-        return {
-            "title": report_type,
-            "status": "CABINET COMMISSION VERIFIED & APPROVED",
-            "executive_summary": (
-                f"This report evaluates supply chain vulnerability under the '{report_type}' framework over {time_range}. "
-                "Geopolitical maritime threat probability remains elevated at 84.5% across primary shipping corridors. "
-                "SciPy linear programming solver recommends immediate execution of Rank 1 Baltic crude rerouting to maintain West Coast refinery throughput."
-            ),
-            "key_takeaways": [
-                "Geopolitical maritime disruption score currently elevated at 84.5% in Arabian Sea / Bab-el-Mandeb threat corridors.",
-                "SciPy Linear Programming optimizer recommends allocating 0.7 mbpd Russian Urals crude via Cape bypass to secure Sikka Port supply continuity.",
-                "ISPRL Padur and Mangaluru caverns have 34 days of reserve buffer cover under active drawdown mandate."
-            ],
-            "indicators_table": [
-                {"indicator": "Brent Crude Benchmark", "baseline": "$82.50/bbl", "current_value": "$96.40/bbl", "delta": "+16.8%"},
-                {"indicator": "National Import Deficit", "baseline": "0.0 mbpd", "current_value": "1.4 mbpd", "delta": "-1.4 mbpd"},
-                {"indicator": "Refinery Run Rate (Sikka/Vadinar)", "baseline": "98.5%", "current_value": "88.2%", "delta": "-10.3%"},
-                {"indicator": "Grid Sector Power Deficit", "baseline": "0 MW", "current_value": "3,200 MW", "delta": "Elevated Load"}
-            ],
-            "taskforce_directives": [
-                "Directive 1: Authorize Rank 1 cargo rerouting for 0.7 mbpd Baltic heavy crude.",
-                "Directive 2: Maintain Padur SPR release rate at 1.15 mbpd to cushion West Coast refineries.",
-                "Directive 3: Re-assess GDELT news signals and AIS vessel transponder anomalies in 45 minutes."
-            ]
-        }
+        risk_sig = scenario_data.get("risk_signal") or {}
+        scen_res = scenario_data.get("scenario_result") or {}
+        base_case = (scen_res.get("scenarios") or [{}])[0] if isinstance(scen_res, dict) and scen_res.get("scenarios") else {}
+        
+        prob = risk_sig.get("disruption_probability", 84.5)
+        severity = risk_sig.get("severity", "ELEVATED")
+        shortfall = risk_sig.get("estimated_supply_impact_mbpd", 1.4)
+        brent = base_case.get("brent_price_mean", 96.4)
+        spr_adv = scenario_data.get("spr_advisory") or {}
+        spr_rate = spr_adv.get("release_rate_mbpd", 1.15)
+        runway = spr_adv.get("new_runway_days", 34)
+        
+        refs = scenario_data.get("parsed_references") or {}
+        news_articles = refs.get("news_articles", [])
+        news_str = "\n".join([f"- {n}" for n in news_articles]) if news_articles else "- Extracted directly from primary feeds."
 
+        fallback_md = f"""# EXECUTIVE SCENARIO BRIEFING: {report_type}
+
+**Prepared By:** Directorate General of Hydrocarbons, Ministry of Petroleum and Natural Gas
+**Date:** {time_range}
+**Severity:** {severity}
+**Risk Probability:** {prob}%
+
+## 1. Trigger Event & Background
+This report evaluates supply chain vulnerability under the '{report_type}' framework over {time_range}. 
+
+## 2. Market Forecast & Predictions
+Geopolitical maritime threat probability remains evaluated at {prob}% based on live intelligence feeds. 
+Brent Crude benchmark is forecasted to reach ${brent:.2f}/bbl under the base case, driving the national import bill up significantly and creating a {shortfall} mbpd deficit.
+
+## 3. Procurement & Rerouting Recommendations
+Linear programming solver recommends immediate execution of Rank 1 alternative crude rerouting to maintain West Coast refinery throughput.
+
+## 4. Strategic Petroleum Reserve (SPR) Mitigation
+ISPRL caverns have {runway} days of reserve buffer cover remaining under an active drawdown mandate of {spr_rate} mbpd.
+
+## 5. Intelligence References
+**News Sources:**
+{news_str}
+- **Commodities:** ICE Brent Spot Pricing
+- **Registries:** Global OFAC Compliance Index
+"""
+        return {"markdown_content": fallback_md}
 
 # Singleton Instance
 groq_prompting_agent = GroqPromptingAgent()
