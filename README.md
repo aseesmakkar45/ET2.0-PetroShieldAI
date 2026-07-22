@@ -108,51 +108,24 @@ A complete walkthrough of PetroShield AI demonstrating:
 
 # 📸 Screenshots
 
-## 1. 🏢 Command Center Dashboard
-<p align="center">
-  <img src="./assets/dashboard-overview.png?v=2" width="90%">
-</p>
-The primary 8-panel dashboard displaying live Brent crude tracking, SPR buffer limits, and the operational status of all Agent pipelines.
+| 🏢 Command Center Dashboard | 🌍 Geospatial Risk Map & Live Terminal |
+|:---:|:---:|
+| <img src="./assets/dashboard-overview.png?v=2" width="100%"> | <img src="./assets/risk-map-terminal.png?v=2" width="100%"> |
+| *The primary 8-panel dashboard displaying live Brent crude tracking, SPR buffer limits, and the operational status of all Agent pipelines.* | *A live Leaflet map tracking global maritime chokepoints and intercepted vessel anomalies, complete with streaming agent execution logs via WebSockets.* |
 
----
+<br>
 
-## 2. 🌍 Geospatial Risk Map & Live Terminal
-<p align="center">
-  <img src="./assets/risk-map-terminal.png?v=2" width="90%">
-</p>
-A live Leaflet map tracking global maritime chokepoints and intercepted vessel anomalies, complete with streaming agent execution logs via WebSockets.
+| 📊 Supply Chain Digital Twin (Steady State) | 🔥 Active Scenario: Disruption Cascade |
+|:---:|:---:|
+| <img src="./assets/twin-steady.png?v=2" width="100%"> | <img src="./assets/twin-disruption.png?v=2" width="100%"> |
+| *A macroscopic node-graph modeling the unhindered flow of global crude oil from Middle Eastern suppliers directly into India's domestic refinery network.* | *When a geopolitical event strikes, the Digital Twin visually severs the impacted chokepoint (e.g., Hormuz), while the Executive Agent synthesizes a chronological predicted impact cascade on the right.* |
 
----
+<br>
 
-## 3. 📊 Supply Chain Digital Twin (Steady State)
-<p align="center">
-  <img src="./assets/twin-steady.png?v=2" width="90%">
-</p>
-A macroscopic node-graph modeling the unhindered flow of global crude oil from Middle Eastern suppliers directly into India's domestic refinery network.
-
----
-
-## 4. 🔥 Active Scenario: Disruption Cascade
-<p align="center">
-  <img src="./assets/twin-disruption.png?v=2" width="90%">
-</p>
-When a geopolitical event strikes, the Digital Twin visually severs the impacted chokepoint (e.g., Hormuz), while the Executive Agent synthesizes a chronological predicted impact cascade on the right.
-
----
-
-## 5. 🛒 Procurement LP Orchestrator
-<p align="center">
-  <img src="./assets/procurement-optimizer.png?v=2" width="90%">
-</p>
-The SciPy linear programming interface evaluating alternative cargo reroutes (like WTI Midland or Russian Urals), factoring in freight premiums and port congestion to offset the shortfall.
-
----
-
-## 6. 📄 Executive Scenario Briefing
-<p align="center">
-  <img src="./assets/executive-briefing.png?v=2" width="90%">
-</p>
-The final auto-generated, plain-language Cabinet briefing summarizing the geopolitical trigger, market forecast, and recommended procurement actions.
+| 🛒 Procurement LP Orchestrator | 📄 Executive Scenario Briefing |
+|:---:|:---:|
+| <img src="./assets/procurement-optimizer.png?v=2" width="100%"> | <img src="./assets/executive-briefing.png?v=2" width="100%"> |
+| *The SciPy linear programming interface evaluating alternative cargo reroutes (like WTI Midland or Russian Urals), factoring in freight premiums and port congestion to offset the shortfall.* | *The final auto-generated, plain-language Cabinet briefing summarizing the geopolitical trigger, market forecast, and recommended procurement actions.* |
 
 ---
 
