@@ -57,6 +57,7 @@
 - [Usage](#-usage)
 - [Performance Optimizations](#-performance-optimizations)
 - [Engineering Decisions](#-engineering-decisions)
+- [Difficulties Faced](#-difficulties-faced)
 - [Known Limitations](#-known-limitations)
 - [Future Roadmap](#-future-roadmap)
 
@@ -84,8 +85,8 @@ It requires **deterministic mathematics**, **live geospatial data**, and **multi
 
 PetroShield AI therefore follows an **Agentic + Mathematical** architecture.
 
-Instead of directly asking an LLM to solve the crisis, the application:
-- Uses Groq's ultra-fast LLMs to continuously parse and score global news streams (GDELT).
+Instead of directly asking an LLM to solve the crisis, the application uses a **Dual-Layer Hybrid Architecture (Math + AI)** powered by Semantic RAG:
+- **Graph-RAG Semantic Engine:** Uses Groq's ultra-fast LLMs to continuously ingest unstructured global news streams (GDELT). It deeply understands the semantic context of the text and maps it mathematically to physical supply chain nodes (ports, shipping lanes, refineries) in a directed graph.
 - Extracts structured parameters (impacted chokepoints, volume lost).
 - Feeds these parameters into deterministic Python engines (Geometric Brownian Motion for prices, SciPy Linear Programming for cargo rerouting).
 - Uses LLMs again as Executive Auditors to format these raw mathematical outputs into plain-language executive briefings and double-check physical constraints.
@@ -410,6 +411,15 @@ Navigate to `http://localhost:3000` to view the National Energy Command Center.
 - **Async Event Loop:** The FastAPI backend utilizes `asyncio.create_task()` for the Autonomous Brain and all broadcasting. This ensures that long-running GDELT HTTP requests or multi-agent Groq calls never block the main API thread serving the frontend.
 - **WebSocket Chunking & Log Streams:** The backend overrides `sys.stdout` and streams live agent execution logs via WebSockets to the frontend terminal, keeping overhead low while providing incredible operational transparency.
 - **Groq Round-Robin:** The backend supports multiple Groq API keys (`GROQ_API_KEYS=key1,key2`) and automatically load-balances requests in a round-robin fashion to bypass strict rate limits during massive simulated stress-tests.
+
+---
+
+# 🧗 Difficulties Faced
+
+Building an autonomous geopolitical engine that merges LLMs with hard mathematics posed several major challenges:
+- **Graph-RAG Node Resolution:** We initially struggled to make the LLM reliably extract and map messy, unstructured news entities (e.g., "Middle East tensions") to our strictly formatted NetworkX graph nodes. We solved this by implementing an extremely strict JSON-schema parser within the Risk Intel Agent to force semantic grounding.
+- **LLM Mathematical Hallucinations:** Early versions of the prototype attempted to let the LLM calculate supply deficits and tanker rerouting. It failed spectacularly. We learned we had to strip mathematical responsibilities away from the LLM entirely, handing them off to SciPy and Geometric Brownian Motion engines, while strictly restricting the LLM to an "Auditor" and "Extractor" role.
+- **WebSocket State Synchronization:** Pushing live logs from 6 asynchronous background agents to a Next.js frontend via WebSockets led to race conditions where the UI would freeze. We had to implement an intelligent chunking queue on the FastAPI backend to rate-limit log streaming without losing data.
 
 ---
 
