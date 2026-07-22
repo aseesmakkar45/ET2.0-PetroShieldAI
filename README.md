@@ -27,11 +27,14 @@
 **🌍 Autonomous Monitoring • 📊 Live Digital Twin • 🧮 SciPy Optimization • 🚢 Geospatial Intelligence • ⚡ Real-Time WebSockets**
 
 
+[Demo](#-demo) •
+[Screenshots](#-screenshots) •
 [Features](#-core-features) •
 [Architecture](#-system-architecture) •
 [Lifecycle](#-complete-threat-lifecycle) •
 [Installation](#-installation) •
-[Roadmap](#-future-roadmap)
+[Roadmap](#-future-roadmap) •
+[Resources](#-resources--links)
 
 </div>
 
