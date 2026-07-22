@@ -187,7 +187,7 @@ The final auto-generated, plain-language Cabinet briefing summarizing the geopol
 PetroShield AI follows a highly decoupled client-server architecture. Rather than treating the LLM as a single black-box API call, the system orchestrates multiple specialized agents and deterministic math engines.
 
 <p align="center">
-  <img src="./assets/architecture-stages.png" width="100%">
+  <img src="./assets/architecture-stages.jpeg" width="100%">
 </p>
 
 ```mermaid
@@ -258,7 +258,7 @@ The architecture intentionally keeps responsibilities separated:
 The core innovation of PetroShield AI is its 6-stage autonomous pipeline. The following sequence illustrates exactly what happens internally from the moment a global event occurs to the moment a decision is presented on the dashboard.
 
 <p align="center">
-  <img src="./assets/threat-sequence.png" width="100%">
+  <img src="./assets/threat-sequence.jpeg" width="100%">
 </p>
 
 ## 1. The Geopolitical Trigger (Autonomous Brain)
