@@ -22,6 +22,14 @@ async def get_report_history(db: Session = Depends(get_db)):
     return [s.to_dict() for s in scenarios]
 
 
+@router.get("/reports/wipe")
+async def wipe_reports(db: Session = Depends(get_db)):
+    """Wipes all reports from the database."""
+    db.query(SimulatedScenario).delete()
+    db.commit()
+    return {"status": "success", "message": "All reports wiped"}
+
+
 @router.post("/reports/generate")
 async def generate_groq_report(
     report_type: str = Query(default="Weekly Supply Chain Risk Assessment"),
