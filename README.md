@@ -110,7 +110,7 @@ A complete walkthrough of PetroShield AI demonstrating:
 
 ## 1. 🏢 Command Center Dashboard
 <p align="center">
-  <img src="./assets/dashboard-overview.png" width="90%">
+  <img src="./assets/dashboard-overview.png?v=2" width="90%">
 </p>
 The primary 8-panel dashboard displaying live Brent crude tracking, SPR buffer limits, and the operational status of all Agent pipelines.
 
@@ -118,7 +118,7 @@ The primary 8-panel dashboard displaying live Brent crude tracking, SPR buffer l
 
 ## 2. 🌍 Geospatial Risk Map & Live Terminal
 <p align="center">
-  <img src="./assets/risk-map-terminal.png" width="90%">
+  <img src="./assets/risk-map-terminal.png?v=2" width="90%">
 </p>
 A live Leaflet map tracking global maritime chokepoints and intercepted vessel anomalies, complete with streaming agent execution logs via WebSockets.
 
@@ -126,7 +126,7 @@ A live Leaflet map tracking global maritime chokepoints and intercepted vessel a
 
 ## 3. 📊 Supply Chain Digital Twin (Steady State)
 <p align="center">
-  <img src="./assets/twin-steady.png" width="90%">
+  <img src="./assets/twin-steady.png?v=2" width="90%">
 </p>
 A macroscopic node-graph modeling the unhindered flow of global crude oil from Middle Eastern suppliers directly into India's domestic refinery network.
 
@@ -134,7 +134,7 @@ A macroscopic node-graph modeling the unhindered flow of global crude oil from M
 
 ## 4. 🔥 Active Scenario: Disruption Cascade
 <p align="center">
-  <img src="./assets/twin-disruption.png" width="90%">
+  <img src="./assets/twin-disruption.png?v=2" width="90%">
 </p>
 When a geopolitical event strikes, the Digital Twin visually severs the impacted chokepoint (e.g., Hormuz), while the Executive Agent synthesizes a chronological predicted impact cascade on the right.
 
@@ -142,7 +142,7 @@ When a geopolitical event strikes, the Digital Twin visually severs the impacted
 
 ## 5. 🛒 Procurement LP Orchestrator
 <p align="center">
-  <img src="./assets/procurement-optimizer.png" width="90%">
+  <img src="./assets/procurement-optimizer.png?v=2" width="90%">
 </p>
 The SciPy linear programming interface evaluating alternative cargo reroutes (like WTI Midland or Russian Urals), factoring in freight premiums and port congestion to offset the shortfall.
 
@@ -150,7 +150,7 @@ The SciPy linear programming interface evaluating alternative cargo reroutes (li
 
 ## 6. 📄 Executive Scenario Briefing
 <p align="center">
-  <img src="./assets/executive-briefing.png" width="90%">
+  <img src="./assets/executive-briefing.png?v=2" width="90%">
 </p>
 The final auto-generated, plain-language Cabinet briefing summarizing the geopolitical trigger, market forecast, and recommended procurement actions.
 
@@ -187,7 +187,7 @@ The final auto-generated, plain-language Cabinet briefing summarizing the geopol
 PetroShield AI follows a highly decoupled client-server architecture. Rather than treating the LLM as a single black-box API call, the system orchestrates multiple specialized agents and deterministic math engines.
 
 <p align="center">
-  <img src="./assets/architecture-stages.jpeg" width="100%">
+  <img src="./assets/architecture-stages.jpeg?v=2" width="100%">
 </p>
 
 ```mermaid
@@ -258,7 +258,7 @@ The architecture intentionally keeps responsibilities separated:
 The core innovation of PetroShield AI is its 6-stage autonomous pipeline. The following sequence illustrates exactly what happens internally from the moment a global event occurs to the moment a decision is presented on the dashboard.
 
 <p align="center">
-  <img src="./assets/threat-sequence.jpeg" width="100%">
+  <img src="./assets/threat-sequence.jpeg?v=2" width="100%">
 </p>
 
 ## 1. The Geopolitical Trigger (Autonomous Brain)
