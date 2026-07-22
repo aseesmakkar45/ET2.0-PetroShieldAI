@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./assets/banner.png" alt="PetroShield AI Banner" width="100%"/>
+<img src="./assets/logo.png" alt="PetroShield AI Banner" width="100%"/>
 
 # 🛡️ PetroShield AI
 
